@@ -30,25 +30,42 @@ export const handler = async (event: any) => {
     const body = JSON.parse(event.body || '{}');
     const { action, email, data } = body;
 
+    // --- DEMO FETCH ---
     if (action === 'getDemoTemplates') {
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEETS.demo,
         range: "'Demo Templates'!A:G", 
       });
+      return { statusCode: 200, headers, body: JSON.stringify({ data: response.data.values || [] }) };
+    }
+
+    // --- MARKETPLACE FETCH (UPDATED) ---
+    if (action === 'getMarketplaceData') {
+      // Fetch both sheets at the exact same time
+      const [libraryRes, imagesRes] = await Promise.all([
+        sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEETS.marketplace,
+          range: "'Library'!A:H",
+        }),
+        sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEETS.marketplace,
+          range: "'Images'!A:D",
+        })
+      ]);
       
-      const rows = response.data.values || [];
-      return { statusCode: 200, headers, body: JSON.stringify({ data: rows }) };
+      return { 
+        statusCode: 200, 
+        headers, 
+        body: JSON.stringify({ 
+          data: {
+            library: libraryRes.data.values || [],
+            images: imagesRes.data.values || []
+          } 
+        }) 
+      };
     }
 
-    if (action === 'getMarketplaceForms') {
-      const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEETS.marketplace,
-        range: 'Sheet1!A:H', 
-      });
-      const rows = response.data.values || [];
-      return { statusCode: 200, headers, body: JSON.stringify({ data: rows }) };
-    }
-
+    // --- CLIENT DATA FETCH ---
     if (action === 'getClientData' && email) {
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEETS.main,
