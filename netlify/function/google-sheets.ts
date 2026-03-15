@@ -23,9 +23,9 @@ export const handler = async (event: any) => {
     // Authenticate using Environment Variables (Hidden from the public)
     const auth = new google.auth.GoogleAuth({
       credentials: {
-        client_email: process.env.VITE_GOOGLE_CLIENT_EMAIL,
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
         // The regex ensures newlines in the private key are parsed correctly
-        private_key: process.env.VITE_GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
       },
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
