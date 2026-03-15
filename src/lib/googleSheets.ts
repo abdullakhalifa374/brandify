@@ -30,8 +30,8 @@ export const getDemoTemplates = async () => {
   return await fetchFromSheets({ action: 'getDemoTemplates' });
 };
 
-export const getMarketplaceForms = async () => {
-  return await fetchFromSheets({ action: 'getMarketplaceForms' });
+export const getMarketplaceData = async () => {
+  return await fetchFromSheets({ action: 'getMarketplaceData' });
 };
 
 export const getClientData = async (userEmail: string) => {
