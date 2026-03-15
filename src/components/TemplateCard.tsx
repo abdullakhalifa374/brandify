@@ -6,7 +6,7 @@ interface TemplateCardProps {
   preview: string;
   title: string;
   category: string;
-  type: string;
+  type?: string; // Kept as optional so we don't break other pages passing it
   credit?: number;
   price?: number;
   usage?: number;
@@ -14,7 +14,7 @@ interface TemplateCardProps {
   onCtaClick: () => void;
 }
 
-const TemplateCard = ({ preview, title, category, type, credit, price, usage, ctaLabel, onCtaClick }: TemplateCardProps) => {
+const TemplateCard = ({ preview, title, category, credit, price, usage, ctaLabel, onCtaClick }: TemplateCardProps) => {
   return (
     <Card className="group overflow-hidden border border-border bg-card transition-all hover:-translate-y-0.5 hover:shadow-md">
       <div className="aspect-video w-full overflow-hidden">
@@ -29,7 +29,7 @@ const TemplateCard = ({ preview, title, category, type, credit, price, usage, ct
         <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2">{title}</h3>
         <div className="flex items-center gap-1.5 flex-wrap">
           <Badge variant="secondary" className="text-xs font-medium">{category}</Badge>
-          <Badge variant="outline" className="text-xs font-medium">{type}</Badge>
+          {/* Removed the Type badge from here */}
         </div>
         <div className="flex items-center justify-between">
           {credit !== undefined && (
