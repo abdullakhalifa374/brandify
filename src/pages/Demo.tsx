@@ -5,7 +5,8 @@ import TemplateCard from "@/components/TemplateCard";
 import FilterBar from "@/components/FilterBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, Loader2, AlertCircle } from "lucide-react"; // Added AlertCircle
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, AlertCircle, Save, Edit2 } from "lucide-react";
 
 const FORMS_BASE = "https://forms.brandify.zone";
 
@@ -22,17 +23,14 @@ interface DemoTemplate {
 const Demo = () => {
   const { user } = useAuth();
   const [email, setEmail] = useState("");
-  const [showBanner, setShowBanner] = useState(false);
-  const [bannerEmail, setBannerEmail] = useState("");
+  const [inputEmail, setInputEmail] = useState("");
   const [category, setCategory] = useState("all");
-  const [type, setType] = useState("all");
   
   const [templates, setTemplates] = useState<DemoTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // NEW: State to hold and display the exact error message
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // 1. Handle Auth & Cookie loading
   useEffect(() => {
     if (user) {
       setEmail(user.email || "");
@@ -40,22 +38,21 @@ const Demo = () => {
       const cookie = document.cookie.split("; ").find(c => c.startsWith("brandify_email="));
       if (cookie) {
         setEmail(cookie.split("=")[1]);
-      } else {
-        setShowBanner(true);
       }
     }
   }, [user]);
 
+  // 2. Fetch Data
   useEffect(() => {
     async function loadTemplates() {
       try {
         setIsLoading(true);
-        setErrorMessage(null); // Reset error before fetching
+        setErrorMessage(null);
         
         const rows = await getDemoTemplates();
         
         if (!rows || rows.length === 0) {
-           setErrorMessage("Connection successful, but the Google Sheet returned 0 rows. Check if the sheet is empty or if the tab name is exactly 'Demo Templates'.");
+           setErrorMessage("Connection successful, but the Google Sheet returned 0 rows.");
            setIsLoading(false);
            return;
         }
@@ -73,7 +70,6 @@ const Demo = () => {
         setTemplates(formattedData);
       } catch (error: any) {
         console.error("Failed to load demo templates:", error);
-        // NEW: Capture the exact error message to show on screen
         setErrorMessage(error.message || "An unknown error occurred while fetching data.");
       } finally {
         setIsLoading(false);
@@ -83,48 +79,100 @@ const Demo = () => {
     loadTemplates();
   }, []);
 
+  // 3. Save Email to Cookie
   const handleSaveEmail = () => {
-    if (bannerEmail) {
-      document.cookie = `brandify_email=${bannerEmail};max-age=${60 * 60 * 24 * 30};path=/`;
-      setEmail(bannerEmail);
+    if (inputEmail) {
+      document.cookie = `brandify_email=${inputEmail};max-age=${60 * 60 * 24 * 30};path=/`;
+      setEmail(inputEmail);
+      setInputEmail(""); // clear input after save
     }
-    setShowBanner(false);
   };
 
-  const categories = Array.from(new Set(templates.map(t => t.category).filter(Boolean)));
-  const types = Array.from(new Set(templates.map(t => t.type).filter(Boolean)));
+  // 4. URL Fixer
+  const handleTry = (formUrl: string) => {
+    let finalUrl = formUrl;
+    
+    // Check if the URL from Google Sheets already includes http(s). If not, add the base URL.
+    if (!finalUrl.startsWith('http')) {
+      const cleanFormUrl = formUrl.replace(/^\/+/, ''); // remove extra slashes just in case
+      finalUrl = `${FORMS_BASE}/${cleanFormUrl}`;
+    }
+    
+    // Add the email parameter safely
+    if (email) {
+      const separator = finalUrl.includes('?') ? '&' : '?';
+      finalUrl = `${finalUrl}${separator}email=${encodeURIComponent(email)}`;
+    }
+    
+    window.open(finalUrl, "_blank");
+  };
 
-  const filtered = templates.filter(f => {
+  // 5. Data Filtering & Sorting
+  const categories = Array.from(new Set(templates.map(t => t.category).filter(Boolean)));
+
+  // Filter by category first
+  const filteredByCategory = templates.filter(f => {
     if (category !== "all" && f.category !== category) return false;
-    if (type !== "all" && f.type !== type) return false;
     return true;
   });
 
-  const handleTry = (formUrl: string) => {
-    const url = email ? `${FORMS_BASE}/${formUrl}/?email=${email}` : `${FORMS_BASE}/${formUrl}/`;
-    window.open(url, "_blank");
-  };
+  // Then split into Personal and Business for the Tabs
+  const businessTemplates = filteredByCategory.filter(t => t.type?.toLowerCase() !== 'personal');
+  const personalTemplates = filteredByCategory.filter(t => t.type?.toLowerCase() === 'personal');
 
   return (
-    <div className="container py-8 space-y-6">
-      {/* ... Banner code remains the same ... */}
+    <div className="container py-8 space-y-8">
       
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Demo Templates</h1>
-          <p className="text-muted-foreground mt-1">Try our templates for free</p>
+      {/* HEADER & EMAIL SECTION */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+        <div className="space-y-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Demo Templates</h1>
+            <p className="text-muted-foreground mt-1">Try our templates for free</p>
+          </div>
+
+          {/* Permanent Email Input area (fixes the incognito issue) */}
+          <div className="h-10"> 
+            {email ? (
+              <div className="inline-flex items-center gap-2 text-sm bg-primary/10 text-primary px-3 py-1.5 rounded-md border border-primary/20">
+                <span>Saving progress to: <strong>{email}</strong></span>
+                {!user && ( // Only allow changing if they aren't forced logged in via Firebase
+                  <button onClick={() => setEmail("")} className="hover:underline flex items-center gap-1 font-medium ml-2">
+                    <Edit2 className="h-3 w-3" /> Change
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 max-w-sm">
+                <Input
+                  type="email"
+                  placeholder="Enter email to save progress"
+                  value={inputEmail}
+                  onChange={e => setInputEmail(e.target.value)}
+                  className="h-9"
+                />
+                <Button size="sm" onClick={handleSaveEmail} className="h-9">
+                  <Save className="h-4 w-4 mr-2"/> Save
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
-        <FilterBar
-          categories={categories}
-          types={types}
-          selectedCategory={category}
-          selectedType={type}
-          onCategoryChange={setCategory}
-          onTypeChange={setType}
-        />
+
+        {/* Category Filter (We removed Type from here because Tabs handle it now) */}
+        <div className="shrink-0">
+          <FilterBar
+            categories={categories}
+            types={[]} // Disabled inside FilterBar
+            selectedCategory={category}
+            selectedType={"all"} 
+            onCategoryChange={setCategory}
+            onTypeChange={() => {}}
+          />
+        </div>
       </div>
 
-      {/* NEW: Error Display Box */}
+      {/* ERROR DISPLAY */}
       {errorMessage && (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
@@ -135,30 +183,65 @@ const Demo = () => {
         </div>
       )}
 
+      {/* CONTENT & TABS */}
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-24 space-y-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">Loading templates...</p>
         </div>
-      ) : filtered.length === 0 && !errorMessage ? (
-        <div className="text-center py-24 bg-card rounded-lg border border-border">
-          <p className="text-muted-foreground">No templates found for these filters.</p>
-        </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map(f => (
-            <TemplateCard
-              key={f.frontly_id || Math.random().toString()}
-              preview={f.preview}
-              title={f.title}
-              category={f.category}
-              type={f.type}
-              usage={f.usage}
-              ctaLabel="Try Template"
-              onCtaClick={() => handleTry(f.formUrl)}
-            />
-          ))}
-        </div>
+        <Tabs defaultValue="business" className="w-full">
+          <TabsList className="mb-6 grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="business">Business</TabsTrigger>
+            <TabsTrigger value="personal">Personal</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="business" className="mt-0">
+             {businessTemplates.length === 0 ? (
+                <div className="text-center py-16 bg-card rounded-lg border border-border">
+                  <p className="text-muted-foreground">No business templates found for this category.</p>
+                </div>
+             ) : (
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {businessTemplates.map(f => (
+                    <TemplateCard
+                      key={f.frontly_id || Math.random().toString()}
+                      preview={f.preview}
+                      title={f.title}
+                      category={f.category}
+                      type={f.type}
+                      usage={f.usage}
+                      ctaLabel="Try Template"
+                      onCtaClick={() => handleTry(f.formUrl)}
+                    />
+                  ))}
+                </div>
+             )}
+          </TabsContent>
+
+          <TabsContent value="personal" className="mt-0">
+             {personalTemplates.length === 0 ? (
+                <div className="text-center py-16 bg-card rounded-lg border border-border">
+                  <p className="text-muted-foreground">No personal templates found for this category.</p>
+                </div>
+             ) : (
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {personalTemplates.map(f => (
+                    <TemplateCard
+                      key={f.frontly_id || Math.random().toString()}
+                      preview={f.preview}
+                      title={f.title}
+                      category={f.category}
+                      type={f.type}
+                      usage={f.usage}
+                      ctaLabel="Try Template"
+                      onCtaClick={() => handleTry(f.formUrl)}
+                    />
+                  ))}
+                </div>
+             )}
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
