@@ -160,17 +160,13 @@ const Demo = () => {
         </div>
 
         {/* Category Filter (We removed Type from here because Tabs handle it now) */}
-        <div className="shrink-0">
+<div className="shrink-0">
           <FilterBar
             categories={categories}
-            types={[]} // Disabled inside FilterBar
             selectedCategory={category}
-            selectedType={"all"} 
             onCategoryChange={setCategory}
-            onTypeChange={() => {}}
           />
         </div>
-      </div>
 
       {/* ERROR DISPLAY */}
       {errorMessage && (
