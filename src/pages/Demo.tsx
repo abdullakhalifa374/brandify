@@ -30,7 +30,6 @@ const Demo = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // 1. Handle Auth & Cookie loading
   useEffect(() => {
     if (user) {
       setEmail(user.email || "");
@@ -42,7 +41,6 @@ const Demo = () => {
     }
   }, [user]);
 
-  // 2. Fetch Data
   useEffect(() => {
     async function loadTemplates() {
       try {
@@ -79,26 +77,22 @@ const Demo = () => {
     loadTemplates();
   }, []);
 
-  // 3. Save Email to Cookie
   const handleSaveEmail = () => {
     if (inputEmail) {
       document.cookie = `brandify_email=${inputEmail};max-age=${60 * 60 * 24 * 30};path=/`;
       setEmail(inputEmail);
-      setInputEmail(""); // clear input after save
+      setInputEmail(""); 
     }
   };
 
-  // 4. URL Fixer
   const handleTry = (formUrl: string) => {
     let finalUrl = formUrl;
     
-    // Check if the URL from Google Sheets already includes http(s). If not, add the base URL.
     if (!finalUrl.startsWith('http')) {
-      const cleanFormUrl = formUrl.replace(/^\/+/, ''); // remove extra slashes just in case
+      const cleanFormUrl = formUrl.replace(/^\/+/, ''); 
       finalUrl = `${FORMS_BASE}/${cleanFormUrl}`;
     }
     
-    // Add the email parameter safely
     if (email) {
       const separator = finalUrl.includes('?') ? '&' : '?';
       finalUrl = `${finalUrl}${separator}email=${encodeURIComponent(email)}`;
@@ -107,16 +101,13 @@ const Demo = () => {
     window.open(finalUrl, "_blank");
   };
 
-  // 5. Data Filtering & Sorting
   const categories = Array.from(new Set(templates.map(t => t.category).filter(Boolean)));
 
-  // Filter by category first
   const filteredByCategory = templates.filter(f => {
     if (category !== "all" && f.category !== category) return false;
     return true;
   });
 
-  // Then split into Personal and Business for the Tabs
   const businessTemplates = filteredByCategory.filter(t => t.type?.toLowerCase() !== 'personal');
   const personalTemplates = filteredByCategory.filter(t => t.type?.toLowerCase() === 'personal');
 
@@ -131,12 +122,11 @@ const Demo = () => {
             <p className="text-muted-foreground mt-1">Try our templates for free</p>
           </div>
 
-          {/* Permanent Email Input area (fixes the incognito issue) */}
           <div className="h-10"> 
             {email ? (
               <div className="inline-flex items-center gap-2 text-sm bg-primary/10 text-primary px-3 py-1.5 rounded-md border border-primary/20">
                 <span>Saving progress to: <strong>{email}</strong></span>
-                {!user && ( // Only allow changing if they aren't forced logged in via Firebase
+                {!user && ( 
                   <button onClick={() => setEmail("")} className="hover:underline flex items-center gap-1 font-medium ml-2">
                     <Edit2 className="h-3 w-3" /> Change
                   </button>
@@ -159,14 +149,14 @@ const Demo = () => {
           </div>
         </div>
 
-        {/* Category Filter (We removed Type from here because Tabs handle it now) */}
-<div className="shrink-0">
+        <div className="shrink-0">
           <FilterBar
             categories={categories}
             selectedCategory={category}
             onCategoryChange={setCategory}
           />
         </div>
+      </div>
 
       {/* ERROR DISPLAY */}
       {errorMessage && (
