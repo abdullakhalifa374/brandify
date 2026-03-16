@@ -4,7 +4,6 @@ import { getMarketplaceData } from "@/lib/googleSheets";
 import TemplateCard from "@/components/TemplateCard";
 import FilterBar from "@/components/FilterBar";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, AlertCircle, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -40,6 +39,7 @@ const Marketplace = () => {
   
   const [templates, setTemplates] = useState<MarketplaceTemplate[]>([]);
   const [category, setCategory] = useState("all");
+  const [type, setType] = useState("all"); // NEW: Type state
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -62,19 +62,14 @@ const Marketplace = () => {
            return;
         }
 
-        // Parse images sheet (Skip header row 0)
-        // Columns: frontly_id | template id | color | image
         const parsedImages = imageRows.slice(1).map((row: any[]) => ({
           template_id: row[1] || "",
           color: row[2] || "Default",
           url: row[3] || ""
         }));
 
-        // Parse library sheet (Skip header row 0)
-        // Columns: frontly_id | template id | Template | Type | Category | Description | Preview | Price
         const formattedData: MarketplaceTemplate[] = libraryRows.slice(1).map((row: any[]) => {
           const tId = row[1] || "";
-          // Find all extra images that belong to this template ID
           const templateImages = parsedImages.filter((img: any) => img.template_id === tId);
 
           return {
@@ -104,18 +99,14 @@ const Marketplace = () => {
 
   const handleViewDetails = (template: MarketplaceTemplate) => {
     setSelectedTemplate(template);
-    setActiveImageIndex(0); // Reset to first image when opening
+    setActiveImageIndex(0); 
   };
 
   const handlePurchase = (template: MarketplaceTemplate) => {
     if (!user) {
-      // If not logged in, send them to login
       navigate("/login");
       return;
     }
-    
-    // Construct purchase URL
-    // Note: 'mobile' will be added in Phase 3 when we load user profiles. For now we use Firebase email.
     const price = template.price;
     const tId = template.template_id;
     const email = encodeURIComponent(user.email || "");
@@ -124,38 +115,16 @@ const Marketplace = () => {
     window.open(purchaseUrl, "_blank");
   };
 
-  // Filtering Logic
+  // NEW: Dynamic extractors for both Category and Type
   const categories = Array.from(new Set(templates.map(t => t.category).filter(Boolean)));
-  const filteredByCategory = templates.filter(f => category === "all" || f.category === category);
-  
-  const businessTemplates = filteredByCategory.filter(t => t.type?.toLowerCase() !== 'personal');
-  const personalTemplates = filteredByCategory.filter(t => t.type?.toLowerCase() === 'personal');
+  const types = Array.from(new Set(templates.map(t => t.type).filter(Boolean)));
 
-  // The grid render function to keep things clean
-  const renderGrid = (items: MarketplaceTemplate[]) => {
-    if (items.length === 0) {
-      return (
-        <div className="text-center py-16 bg-card rounded-lg border border-border">
-          <p className="text-muted-foreground">No templates found for this category.</p>
-        </div>
-      );
-    }
-    return (
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {items.map(f => (
-          <TemplateCard
-            key={f.template_id || Math.random().toString()}
-            preview={f.mainPreview}
-            title={f.title}
-            category={f.category}
-            price={f.price}
-            ctaLabel="View Details"
-            onCtaClick={() => handleViewDetails(f)}
-          />
-        ))}
-      </div>
-    );
-  };
+  // NEW: Filtering checks both category and type
+  const filteredTemplates = templates.filter(f => {
+    if (category !== "all" && f.category !== category) return false;
+    if (type !== "all" && f.type !== type) return false;
+    return true;
+  });
 
   return (
     <div className="container py-8 space-y-8">
@@ -169,8 +138,11 @@ const Marketplace = () => {
         <div className="shrink-0">
           <FilterBar
             categories={categories}
+            types={types}
             selectedCategory={category}
+            selectedType={type}
             onCategoryChange={setCategory}
+            onTypeChange={setType}
           />
         </div>
       </div>
@@ -186,21 +158,31 @@ const Marketplace = () => {
         </div>
       )}
 
-      {/* TABS & CONTENT */}
+      {/* CONTENT GRID (Tabs Removed) */}
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-24 space-y-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">Loading marketplace...</p>
         </div>
+      ) : filteredTemplates.length === 0 ? (
+        <div className="text-center py-16 bg-card rounded-lg border border-border mt-0">
+          <p className="text-muted-foreground">No templates found for these filters.</p>
+        </div>
       ) : (
-        <Tabs defaultValue="business" className="w-full">
-          <TabsList className="mb-6 grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="business">Business</TabsTrigger>
-            <TabsTrigger value="personal">Personal</TabsTrigger>
-          </TabsList>
-          <TabsContent value="business" className="mt-0">{renderGrid(businessTemplates)}</TabsContent>
-          <TabsContent value="personal" className="mt-0">{renderGrid(personalTemplates)}</TabsContent>
-        </Tabs>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-0">
+          {filteredTemplates.map(f => (
+            <TemplateCard
+              key={f.template_id || Math.random().toString()}
+              preview={f.mainPreview}
+              title={f.title}
+              category={f.category}
+              type={f.type} // Passes the type so the badge shows
+              price={f.price}
+              ctaLabel="View Details"
+              onCtaClick={() => handleViewDetails(f)}
+            />
+          ))}
+        </div>
       )}
 
       {/* TEMPLATE DETAILS MODAL */}
@@ -215,7 +197,6 @@ const Marketplace = () => {
                 </DialogDescription>
               </DialogHeader>
               
-              {/* Main Image View */}
               <div className="rounded-lg overflow-hidden border border-border bg-muted aspect-video relative">
                 <img 
                   src={
@@ -228,7 +209,6 @@ const Marketplace = () => {
                 />
               </div>
 
-              {/* Thumbnail Gallery (Only show if there are extra images) */}
               {selectedTemplate.gallery.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {selectedTemplate.gallery.map((img, idx) => (
@@ -240,16 +220,18 @@ const Marketplace = () => {
                       }`}
                     >
                       <img src={img.url} alt={`${img.color} variant`} className="h-full w-full object-cover" />
-                      {/* Optional: Show color name label on hover or bottom */}
-                      <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center">
-                        {img.color}
-                      </span>
+                      
+                      {/* FIX: Only show the label if a color exists AND it is NOT "Default" */}
+                      {img.color && img.color.toLowerCase() !== 'default' && (
+                        <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center">
+                          {img.color}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
               )}
 
-              {/* Footer / Purchase Action */}
               <div className="flex items-center justify-between pt-4 border-t border-border">
                 <div>
                   <p className="text-sm text-muted-foreground">Price</p>
