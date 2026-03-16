@@ -2,11 +2,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface FilterBarProps {
   categories: string[];
+  types?: string[];
   selectedCategory: string;
+  selectedType?: string;
   onCategoryChange: (val: string) => void;
+  onTypeChange?: (val: string) => void;
 }
 
-const FilterBar = ({ categories, selectedCategory, onCategoryChange }: FilterBarProps) => {
+const FilterBar = ({ categories, types, selectedCategory, selectedType, onCategoryChange, onTypeChange }: FilterBarProps) => {
   return (
     <div className="flex flex-wrap gap-3">
       <Select value={selectedCategory} onValueChange={onCategoryChange}>
@@ -20,6 +23,21 @@ const FilterBar = ({ categories, selectedCategory, onCategoryChange }: FilterBar
           ))}
         </SelectContent>
       </Select>
+
+      {/* Only show the Type dropdown if the page passes 'types' to this component */}
+      {types && onTypeChange && selectedType !== undefined && (
+        <Select value={selectedType} onValueChange={onTypeChange}>
+          <SelectTrigger className="w-[180px] bg-card">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {types.map(t => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
     </div>
   );
 };
