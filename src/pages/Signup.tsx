@@ -14,21 +14,21 @@ const Signup = () => {
 
   const update = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
-const handleSignup = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      // 1. Create the user in Firebase (You likely already have this part)
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // 1. Create the user in Firebase via your Auth Context
+      await signup(form.email, form.password);
       
-      // 2. NEW: Send the data to your Activepieces Webhook
+      // 2. Send the data to your Activepieces Webhook using the 'form' object
       const webhookData = {
-        firstName: firstName,     // make sure these variable names match your state variables!
-        lastName: lastName,
-        email: email,
-        mobile: mobile,
-        company: companyName,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        mobile: form.phone,
+        company: form.company,
         source: "Brandify App Signup",
         timestamp: new Date().toISOString()
       };
@@ -48,7 +48,7 @@ const handleSignup = async (e: React.FormEvent) => {
       console.error("Signup failed:", error);
       // Handle your error state/toast here
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -60,7 +60,7 @@ const handleSignup = async (e: React.FormEvent) => {
           <CardDescription>14 days free • 25 credits • No credit card required</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
