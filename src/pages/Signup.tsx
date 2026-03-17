@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react"; // <-- Added for the error icon
+import { AlertCircle } from "lucide-react";
 
 const Signup = () => {
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", company: "", password: "" });
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null); // <-- Added error state
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { signup } = useAuth();
   const navigate = useNavigate();
 
@@ -19,11 +19,18 @@ const Signup = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMessage(null); // Clear old errors when trying again
+    setErrorMessage(null);
 
     try {
-      // 1. Create the user in Firebase
-      await signup(form.email, form.password);
+      // 1. Create the user in Firebase by passing the full object
+      await signup({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        phone: form.phone,
+        company: form.company,
+        password: form.password
+      });
       
       // 2. Send the data to your Activepieces Webhook
       const webhookData = {
@@ -49,7 +56,6 @@ const Signup = () => {
       
     } catch (error: any) {
       console.error("Signup failed:", error);
-      // NEW: Catch the error and display it on the screen!
       setErrorMessage(error.message || "An unknown error occurred while creating your account.");
     } finally {
       setLoading(false);
@@ -65,7 +71,7 @@ const Signup = () => {
         </CardHeader>
         <CardContent>
 
-          {/* NEW: Error Display Box */}
+          {/* Error Display Box */}
           {errorMessage && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 flex items-start gap-3 text-sm">
               <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
