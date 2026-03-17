@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { AlertCircle } from "lucide-react"; // <-- Added for the error icon
 
 const Signup = () => {
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", company: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null); // <-- Added error state
   const { signup } = useAuth();
   const navigate = useNavigate();
 
@@ -17,12 +19,13 @@ const Signup = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage(null); // Clear old errors when trying again
 
     try {
-      // 1. Create the user in Firebase via your Auth Context
+      // 1. Create the user in Firebase
       await signup(form.email, form.password);
       
-      // 2. Send the data to your Activepieces Webhook using the 'form' object
+      // 2. Send the data to your Activepieces Webhook
       const webhookData = {
         firstName: form.firstName,
         lastName: form.lastName,
@@ -46,7 +49,8 @@ const Signup = () => {
       
     } catch (error: any) {
       console.error("Signup failed:", error);
-      // Handle your error state/toast here
+      // NEW: Catch the error and display it on the screen!
+      setErrorMessage(error.message || "An unknown error occurred while creating your account.");
     } finally {
       setLoading(false);
     }
@@ -60,6 +64,15 @@ const Signup = () => {
           <CardDescription>14 days free • 25 credits • No credit card required</CardDescription>
         </CardHeader>
         <CardContent>
+
+          {/* NEW: Error Display Box */}
+          {errorMessage && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 flex items-start gap-3 text-sm">
+              <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
