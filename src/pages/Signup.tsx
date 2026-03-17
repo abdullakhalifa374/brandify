@@ -14,16 +14,41 @@ const Signup = () => {
 
   const update = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsLoading(true);
+
     try {
-      await signup(form);
+      // 1. Create the user in Firebase (You likely already have this part)
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // 2. NEW: Send the data to your Activepieces Webhook
+      const webhookData = {
+        firstName: firstName,     // make sure these variable names match your state variables!
+        lastName: lastName,
+        email: email,
+        mobile: mobile,
+        company: companyName,
+        source: "Brandify App Signup",
+        timestamp: new Date().toISOString()
+      };
+
+      await fetch("https://cloud.activepieces.com/api/v1/webhooks/HfoxJpGT4nQbK0lWGRcI0", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(webhookData),
+      });
+
+      // 3. Redirect to the App Dashboard
       navigate("/app");
-    } catch {
-      // TODO: handle error
+      
+    } catch (error: any) {
+      console.error("Signup failed:", error);
+      // Handle your error state/toast here
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
