@@ -37,3 +37,7 @@ export const getMarketplaceData = async () => {
 export const getClientData = async (userEmail: string) => {
   return await fetchFromSheets({ action: 'getClientData', email: userEmail });
 };
+
+export const getAppDashboardData = async (userEmail: string) => {
+  return await fetchFromSheets({ action: 'getAppDashboardData', email: userEmail });
+};
