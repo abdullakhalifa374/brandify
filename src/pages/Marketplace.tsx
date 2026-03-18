@@ -255,14 +255,19 @@ const { user, client } = useAuth(); // Make sure 'client' is destructured here!
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-4 border-t border-border">
+<div className="flex items-center justify-between pt-4 border-t border-border">
                 <div>
                   <p className="text-sm text-muted-foreground">Price</p>
                   <p className="text-2xl font-bold">{selectedTemplate.price} BD</p>
                 </div>
-                <Button size="lg" onClick={() => handlePurchase(selectedTemplate)}>
-                  <ShoppingCart className="w-5 h-5 mr-2" />
-                  {user ? "Purchase Now" : "Login to Purchase"}
+                <Button size="lg" onClick={() => handlePurchase(selectedTemplate)} disabled={isClaiming}>
+                  {isClaiming ? (
+                    <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Claiming...</>
+                  ) : hasFreeClaims ? (
+                    <>Claim for Free ({(parseInt(client.freeTemplates.toString()) - parseInt(client.templatesUsed.toString()))} left)</>
+                  ) : (
+                    <><ShoppingCart className="w-5 h-5 mr-2" /> {user ? "Purchase Now" : "Login to Purchase"}</>
+                  )}
                 </Button>
               </div>
             </div>
