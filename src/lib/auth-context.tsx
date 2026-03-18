@@ -8,9 +8,8 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { auth } from "./firebase";
-import { getAppDashboardData } from "./googleSheets"; // <-- Import the new fetcher
+import { getAppDashboardData } from "./googleSheets"; 
 
-// 1. Define the real types based on your Google Sheets data
 export interface ClientProfile {
   frontly_id: string;
   mobile: string;
@@ -49,6 +48,15 @@ export interface ClientTemplate {
   preview: string;
 }
 
+export interface ClientReminder {
+  mobile: string;
+  email: string;
+  type: string;
+  date: string;
+  status: string;
+  plan: string;
+}
+
 interface AuthUser {
   email: string;
   firstName: string;
@@ -67,7 +75,8 @@ interface SignupData {
 interface AuthContextType {
   user: AuthUser | null;
   client: ClientProfile | null;
-  templates: ClientTemplate[]; // <-- Added templates to global state
+  templates: ClientTemplate[]; 
+  reminders: ClientReminder[]; 
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (data: SignupData) => Promise<void>;
@@ -87,36 +96,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser | null>(null);
   const [client, setClient] = useState<ClientProfile | null>(null);
   const [templates, setTemplates] = useState<ClientTemplate[]>([]);
+  const [reminders, setReminders] = useState<ClientReminder[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser && firebaseUser.email) {
-        // Set basic Firebase user
+        // 1. Set basic Firebase user instantly
         const displayName = firebaseUser.displayName || "";
         const [firstName = "", lastName = ""] = displayName.split(" ");
         setUser({ email: firebaseUser.email, firstName, lastName });
 
-        // Fetch real data from Google Sheets
+        // 2. Fetch real data from Google Sheets
         try {
           const result = await getAppDashboardData(firebaseUser.email);
           if (result && result.profile) {
             setClient(result.profile);
             setTemplates(result.templates || []);
+            setReminders(result.reminders || []);
           } else {
             setClient(null);
             setTemplates([]);
+            setReminders([]);
           }
         } catch (error) {
           console.error("Failed to load client data from Sheets:", error);
           setClient(null);
           setTemplates([]);
+          setReminders([]);
         }
 
       } else {
+        // User logged out
         setUser(null);
         setClient(null);
         setTemplates([]);
+        setReminders([]);
       }
       setIsLoading(false); // Stop loading ONLY after data is fetched
     });
@@ -144,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, client, templates, isLoading, login, signup, logout, resetPassword }}>
+    <AuthContext.Provider value={{ user, client, templates, reminders, isLoading, login, signup, logout, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
