@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, AlertCircle, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // NEW: For colors
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; 
 
 interface MarketplaceImage {
   color: string;
@@ -24,8 +24,8 @@ interface MarketplaceTemplate {
   price: number;
   mainPreview: string;
   gallery: MarketplaceImage[];
-  variation: boolean; // NEW
-  availableColors: string[]; // NEW
+  variation: boolean; 
+  availableColors: string[]; 
 }
 
 const FORMS_SERVICES_BASE = "https://forms.brandify.zone/services/";
@@ -40,9 +40,10 @@ const Marketplace = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Modal State
+  // Modal & Image State
   const [selectedTemplate, setSelectedTemplate] = useState<MarketplaceTemplate | null>(null);
-  const [selectedColor, setSelectedColor] = useState<string>("Default"); // Default selected color
+  const [selectedColor, setSelectedColor] = useState<string>("Default"); 
+  const [activeImageUrl, setActiveImageUrl] = useState<string>(""); // NEW: Tracks the currently viewed large image
   const [isClaiming, setIsClaiming] = useState(false);
 
   useEffect(() => {
@@ -60,6 +61,7 @@ const Marketplace = () => {
            return;
         }
 
+        // Parse images from the child sheet
         const parsedImages = imageRows.slice(1).map((row: any[]) => ({
           template_id: row[1] || "",
           color: row[2] || "Default",
@@ -70,15 +72,15 @@ const Marketplace = () => {
 
         const formattedData: MarketplaceTemplate[] = libraryRows.slice(1).map((row: any[]) => {
           const tId = row[1] || "";
+          
+          // Connect all child images to this parent template
           const templateImages = parsedImages.filter((img: any) => img.template_id === tId);
 
-          // NEW: Color Extraction Logic from cols 8 to 18
           const isVariation = row[8]?.toLowerCase() === 'yes';
-          const colors = ["Default"]; // Always available
+          const colors = ["Default"]; 
           
           if (isVariation) {
             colorHeaders.forEach((colorName, idx) => {
-              // Columns 9 through 18 map to the colors
               if (row[9 + idx]?.toLowerCase() === 'yes') {
                 colors.push(colorName);
               }
@@ -112,9 +114,23 @@ const Marketplace = () => {
     loadMarketplace();
   }, []);
 
+  // When a template is clicked, set default states and find the first image
   const handleViewDetails = (template: MarketplaceTemplate) => {
     setSelectedTemplate(template);
-    setSelectedColor("Default"); // Reset to default when opening
+    setSelectedColor("Default"); 
+    
+    // Find the first image that belongs to the "Default" color
+    const defaultImages = template.gallery.filter(img => img.color.toLowerCase() === "default");
+    setActiveImageUrl(defaultImages.length > 0 ? defaultImages[0].url : template.mainPreview);
+  };
+
+  // When the color dropdown changes, update the main image to match the new color
+  const handleColorChange = (newColor: string) => {
+    setSelectedColor(newColor);
+    if (selectedTemplate) {
+      const colorImages = selectedTemplate.gallery.filter(img => img.color.toLowerCase() === newColor.toLowerCase());
+      setActiveImageUrl(colorImages.length > 0 ? colorImages[0].url : selectedTemplate.mainPreview);
+    }
   };
 
   const hasFreeClaims = client ? parseInt(client.freeTemplates.toString()) > parseInt(client.templatesUsed.toString()) : false;
@@ -125,7 +141,7 @@ const Marketplace = () => {
       return;
     }
 
-    // Format the ID with the selected color (e.g. travel-1-red or travel-1-default)
+    // Format the ID accurately (e.g. travel-1-red)
     const formattedTemplateId = `${template.template_id}-${selectedColor.toLowerCase()}`;
 
     if (hasFreeClaims) {
@@ -158,12 +174,8 @@ const Marketplace = () => {
     return true;
   });
 
-  // Helper to find the correct image to display in the modal based on color
-  const getActiveImage = () => {
-    if (!selectedTemplate) return "";
-    const colorImage = selectedTemplate.gallery.find(img => img.color.toLowerCase() === selectedColor.toLowerCase());
-    return colorImage ? colorImage.url : selectedTemplate.mainPreview;
-  };
+  // Filter thumbnails to ONLY show images belonging to the currently selected color
+  const visibleThumbnails = selectedTemplate?.gallery.filter(img => img.color.toLowerCase() === selectedColor.toLowerCase()) || [];
 
   return (
     <div className="container py-8 space-y-8">
@@ -173,14 +185,7 @@ const Marketplace = () => {
           <p className="text-muted-foreground">Browse premium templates for your business</p>
         </div>
         <div className="shrink-0">
-          <FilterBar
-            categories={categories}
-            types={types}
-            selectedCategory={category}
-            selectedType={type}
-            onCategoryChange={setCategory}
-            onTypeChange={setType}
-          />
+          <FilterBar categories={categories} types={types} selectedCategory={category} selectedType={type} onCategoryChange={setCategory} onTypeChange={setType} />
         </div>
       </div>
 
@@ -203,16 +208,7 @@ const Marketplace = () => {
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-0">
           {filteredTemplates.map(f => (
-            <TemplateCard
-              key={f.template_id || Math.random().toString()}
-              preview={f.mainPreview}
-              title={f.title}
-              category={f.category}
-              type={f.type} 
-              price={f.price}
-              ctaLabel="View Details"
-              onCtaClick={() => handleViewDetails(f)}
-            />
+            <TemplateCard key={f.template_id || Math.random().toString()} preview={f.mainPreview} title={f.title} category={f.category} type={f.type} price={f.price} ctaLabel="View Details" onCtaClick={() => handleViewDetails(f)} />
           ))}
         </div>
       )}
@@ -223,25 +219,40 @@ const Marketplace = () => {
             <div className="space-y-6">
               <DialogHeader>
                 <DialogTitle className="text-2xl">{selectedTemplate.title}</DialogTitle>
-                <DialogDescription className="text-base mt-2">
-                  {selectedTemplate.description || "No description provided."}
-                </DialogDescription>
+                <DialogDescription className="text-base mt-2">{selectedTemplate.description || "No description provided."}</DialogDescription>
               </DialogHeader>
               
-              {/* IMAGE DISPLAY */}
+              {/* MAIN IMAGE DISPLAY */}
               <div className="rounded-lg overflow-hidden border border-border bg-muted aspect-video relative flex items-center justify-center">
                 <img 
-                  src={getActiveImage()} 
+                  src={activeImageUrl} 
                   alt={selectedTemplate.title}
                   className="w-full h-full object-contain"
                 />
               </div>
 
-              {/* NEW: COLOR DROPDOWN FILTER */}
+              {/* THUMBNAIL GALLERY (Only shows if this color has more than 1 image) */}
+              {visibleThumbnails.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {visibleThumbnails.map((img, idx) => (
+                    <button 
+                      key={idx}
+                      onClick={() => setActiveImageUrl(img.url)}
+                      className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-md border-2 transition-all ${
+                        activeImageUrl === img.url ? "border-primary" : "border-transparent hover:border-border"
+                      }`}
+                    >
+                      <img src={img.url} alt={`Thumbnail ${idx}`} className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* COLOR DROPDOWN FILTER */}
               {selectedTemplate.variation && selectedTemplate.availableColors.length > 1 && (
                 <div className="flex items-center gap-3 bg-muted/30 p-4 rounded-md border border-border">
                   <span className="text-sm font-medium text-foreground">Select Color Variation:</span>
-                  <Select value={selectedColor} onValueChange={setSelectedColor}>
+                  <Select value={selectedColor} onValueChange={handleColorChange}>
                     <SelectTrigger className="w-[180px] bg-background">
                       <SelectValue placeholder="Select Color" />
                     </SelectTrigger>
@@ -254,6 +265,7 @@ const Marketplace = () => {
                 </div>
               )}
 
+              {/* FOOTER */}
               <div className="flex items-center justify-between pt-4 border-t border-border">
                 <div>
                   <p className="text-sm text-muted-foreground">Price</p>
