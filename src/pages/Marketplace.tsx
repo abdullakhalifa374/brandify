@@ -102,19 +102,42 @@ const Marketplace = () => {
     setActiveImageIndex(0); 
   };
 
-  const handlePurchase = (template: MarketplaceTemplate) => {
-    if (!user) {
+const { user, client } = useAuth(); // Make sure 'client' is destructured here!
+  const [isClaiming, setIsClaiming] = useState(false);
+
+  // Check if they have free claims available
+  const hasFreeClaims = client ? parseInt(client.freeTemplates.toString()) > parseInt(client.templatesUsed.toString()) : false;
+
+  const handlePurchase = async (template: MarketplaceTemplate) => {
+    if (!user || !client) {
       navigate("/login");
       return;
     }
-    const price = template.price;
-    const tId = template.template_id;
-    const email = encodeURIComponent(user.email || "");
-    const purchaseUrl = `${FORMS_SERVICES_BASE}?mobile=&service=template&template=${tId}&price=${price}&email=${email}`;
-    
-    window.open(purchaseUrl, "_blank");
-  };
 
+    if (hasFreeClaims) {
+      // Execute the Claim logic
+      setIsClaiming(true);
+      try {
+        const { claimFreeTemplate } = await import("@/lib/googleSheets");
+        await claimFreeTemplate(client.mobile, template.template_id);
+        alert("Template Claimed Successfully! It has been added to your Account.");
+        window.location.href = "/app/templates"; // Redirect them to see their new template
+      } catch (error) {
+        console.error("Failed to claim:", error);
+        alert("Something went wrong while claiming. Please try again.");
+      } finally {
+        setIsClaiming(false);
+      }
+    } else {
+      // Execute standard Purchase logic
+      const price = template.price;
+      const tId = template.template_id;
+      const email = encodeURIComponent(user.email || "");
+      const purchaseUrl = `${FORMS_SERVICES_BASE}?mobile=${client.mobile}&service=template&template=${tId}&price=${price}&email=${email}`;
+      window.open(purchaseUrl, "_blank");
+    }
+  };
+  
   // NEW: Dynamic extractors for both Category and Type
   const categories = Array.from(new Set(templates.map(t => t.category).filter(Boolean)));
   const types = Array.from(new Set(templates.map(t => t.type).filter(Boolean)));
