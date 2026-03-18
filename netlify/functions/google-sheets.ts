@@ -24,12 +24,34 @@ export const handler = async (event: any) => {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
         private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
       },
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      // NEW: Added Google Drive Scopes here!
+      scopes: [
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive.readonly'
+      ],
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
+    const drive = google.drive({ version: 'v3', auth }); // NEW: Initialize Drive API
+
     const body = JSON.parse(event.body || '{}');
     const { action, email, mobile, data } = body;
+
+    // --- FETCH DRIVE ASSETS (NEW) ---
+    if (action === 'getDriveAssets' && data?.folderId) {
+      try {
+        const response = await drive.files.list({
+          q: `'${data.folderId}' in parents and trashed=false`,
+          fields: 'files(id, name, mimeType, webContentLink, thumbnailLink)',
+          orderBy: 'createdTime desc' // Shows newest images first
+        });
+        return { statusCode: 200, headers, body: JSON.stringify({ data: response.data.files || [] }) };
+      } catch (err: any) {
+        console.error("Drive Error:", err.message);
+        // If the folder is empty or errors out, return an empty array so the app doesn't crash
+        return { statusCode: 200, headers, body: JSON.stringify({ data: [] }) };
+      }
+    }
 
     // --- DEMO FETCH ---
     if (action === 'getDemoTemplates') {
@@ -43,7 +65,7 @@ export const handler = async (event: any) => {
     // --- MARKETPLACE FETCH ---
     if (action === 'getMarketplaceData') {
       const [libraryRes, imagesRes] = await Promise.all([
-        sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Library'!A:T" }), // Extended to T for color columns
+        sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Library'!A:T" }), 
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Images'!A:D" })
       ]);
       return { 
@@ -82,7 +104,7 @@ export const handler = async (event: any) => {
         range: "'Clients Forms'!A:C",
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
-        requestBody: { values: [[newId, mobile, data.templateId]] } // Uses the formatted ID (e.g., travel-1-default)
+        requestBody: { values: [[newId, mobile, data.templateId]] } 
       });
 
       const detailsRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Details'!A:Q" });
