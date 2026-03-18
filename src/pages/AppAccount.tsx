@@ -1,12 +1,52 @@
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { updateClientProfile } from "@/lib/googleSheets";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarClock, Link2, Mail, Phone, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { CalendarClock, Link2, Mail, Phone, ExternalLink, Edit2, Save, Loader2 } from "lucide-react";
 
 const AppAccount = () => {
   const { client, reminders } = useAuth();
+  
+  // Edit State
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    website: "",
+    socialMedia: "",
+    supportPhone: "",
+    supportEmail: ""
+  });
 
   if (!client) return null;
+
+  const handleEditToggle = () => {
+    if (!isEditing) {
+      // Load current values into form when opening edit mode
+      setEditForm({
+        website: client.website || "",
+        socialMedia: client.socialMedia || "",
+        supportPhone: client.supportPhone || "",
+        supportEmail: client.supportEmail || ""
+      });
+    }
+    setIsEditing(!isEditing);
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
+    try {
+      await updateClientProfile(client.mobile, editForm);
+      // Reload page to fetch fresh data from the server
+      window.location.reload(); 
+    } catch (error) {
+      console.error("Failed to update profile", error);
+      alert("Failed to save profile. Please try again.");
+      setIsSaving(false);
+    }
+  };
 
   // Helper to safely extract Google Drive ID and render the image/link
   const renderLogo = (rawUrl: string, label: string) => {
@@ -27,7 +67,7 @@ const AppAccount = () => {
     const formattedUrl = `http://googleusercontent.com/profile/picture/${fileId}`;
     
     // Fallback standard Google image URL in case the profile one acts up on certain browsers
-    const standardImgUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+    const standardImgUrl = `http://googleusercontent.com/profile/picture/${fileId}`;
 
     return (
       <a 
@@ -100,31 +140,43 @@ const AppAccount = () => {
           </Card>
 
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Public Business Details</CardTitle>
-              <CardDescription>Information used on your marketing assets.</CardDescription>
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Public Business Details</CardTitle>
+                <CardDescription>Information used on your marketing assets.</CardDescription>
+              </div>
+              {!isEditing ? (
+                <Button variant="outline" size="sm" onClick={handleEditToggle}><Edit2 className="w-4 h-4 mr-2"/> Edit</Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={handleEditToggle} disabled={isSaving}>Cancel</Button>
+                  <Button size="sm" onClick={handleSaveProfile} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />} Save
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="space-y-3 text-sm">
                 <div className="flex items-center gap-3">
-                  <Link2 className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground w-20">Website:</span>
-                  <span className="font-medium">{client.website || "N/A"}</span>
+                  <Link2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <span className="text-muted-foreground w-20 shrink-0">Website:</span>
+                  {isEditing ? <Input value={editForm.website} onChange={e => setEditForm({...editForm, website: e.target.value})} className="h-8" /> : <span className="font-medium">{client.website || "N/A"}</span>}
                 </div>
                 <div className="flex items-center gap-3">
-                  <Phone className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground w-20">Support:</span>
-                  <span className="font-medium">{client.supportPhone || "N/A"}</span>
+                  <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <span className="text-muted-foreground w-20 shrink-0">Support:</span>
+                  {isEditing ? <Input value={editForm.supportPhone} onChange={e => setEditForm({...editForm, supportPhone: e.target.value})} className="h-8" /> : <span className="font-medium">{client.supportPhone || "N/A"}</span>}
                 </div>
                 <div className="flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground w-20">Email:</span>
-                  <span className="font-medium">{client.supportEmail || "N/A"}</span>
+                  <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <span className="text-muted-foreground w-20 shrink-0">Email:</span>
+                  {isEditing ? <Input type="email" value={editForm.supportEmail} onChange={e => setEditForm({...editForm, supportEmail: e.target.value})} className="h-8" /> : <span className="font-medium">{client.supportEmail || "N/A"}</span>}
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-lg w-4 text-center">@</span>
-                  <span className="text-muted-foreground w-20">Social:</span>
-                  <span className="font-medium">{client.socialMedia || "N/A"}</span>
+                  <span className="text-lg w-4 text-center shrink-0">@</span>
+                  <span className="text-muted-foreground w-20 shrink-0">Social:</span>
+                  {isEditing ? <Input value={editForm.socialMedia} onChange={e => setEditForm({...editForm, socialMedia: e.target.value})} placeholder="@username" className="h-8" /> : <span className="font-medium">{client.socialMedia || "N/A"}</span>}
                 </div>
               </div>
             </CardContent>
