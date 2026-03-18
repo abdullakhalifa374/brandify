@@ -63,11 +63,8 @@ const AppAccount = () => {
     const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/id=([a-zA-Z0-9_-]+)/);
     const fileId = match ? match[1] : rawUrl;
 
-    // Use the exact URL format you requested
+    // Use the exact URL format requested
     const formattedUrl = `http://googleusercontent.com/profile/picture/${fileId}`;
-    
-    // Fallback standard Google image URL in case the profile one acts up on certain browsers
-    const standardImgUrl = `http://googleusercontent.com/profile/picture/${fileId}`;
 
     return (
       <a 
@@ -79,7 +76,7 @@ const AppAccount = () => {
         <div className="flex-1 w-full relative flex items-center justify-center overflow-hidden rounded-sm">
           {/* We try to render the image directly in the UI! */}
           <img 
-            src={standardImgUrl} 
+            src={formattedUrl} 
             alt={label} 
             className="max-h-12 max-w-full object-contain group-hover:scale-105 transition-transform drop-shadow-sm"
             onError={(e) => {
