@@ -29,7 +29,7 @@ export const handler = async (event: any) => {
 
     const sheets = google.sheets({ version: 'v4', auth });
     const body = JSON.parse(event.body || '{}');
-    const { action, email } = body;
+    const { action, email, mobile, data } = body;
 
     // --- DEMO FETCH ---
     if (action === 'getDemoTemplates') {
@@ -43,7 +43,7 @@ export const handler = async (event: any) => {
     // --- MARKETPLACE FETCH ---
     if (action === 'getMarketplaceData') {
       const [libraryRes, imagesRes] = await Promise.all([
-        sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Library'!A:H" }),
+        sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Library'!A:T" }), // Extended to T for color columns
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Images'!A:D" })
       ]);
       return { 
@@ -53,9 +53,57 @@ export const handler = async (event: any) => {
       };
     }
 
+    // --- UPDATE PROFILE ---
+    if (action === 'updateProfile' && mobile && data) {
+      const detailsRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Details'!A:A" });
+      const rows = detailsRes.data.values || [];
+      const rowIndex = rows.findIndex((row: any[]) => row[0] === mobile);
+      
+      if (rowIndex === -1) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Client not found' }) };
+      
+      const sheetRow = rowIndex + 1; 
+      
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEETS.main,
+        range: `'Clients Details'!D${sheetRow}:G${sheetRow}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [[data.website || "", data.socialMedia || "", data.supportPhone || "", data.supportEmail || ""]]
+        }
+      });
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
+    }
+
+    // --- CLAIM FREE TEMPLATE ---
+    if (action === 'claimFreeTemplate' && mobile && data) {
+      const newId = `FRM_${Date.now()}`;
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEETS.main,
+        range: "'Clients Forms'!A:C",
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: { values: [[newId, mobile, data.templateId]] } // Uses the formatted ID (e.g., travel-1-default)
+      });
+
+      const detailsRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Details'!A:Q" });
+      const rows = detailsRes.data.values || [];
+      const rowIndex = rows.findIndex((row: any[]) => row[0] === mobile);
+      
+      if (rowIndex !== -1) {
+        const sheetRow = rowIndex + 1;
+        const currentUsed = parseInt(rows[rowIndex][13] || "0", 10);
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SPREADSHEETS.main,
+          range: `'Clients Details'!N${sheetRow}`, 
+          valueInputOption: 'USER_ENTERED',
+          requestBody: { values: [[(currentUsed + 1).toString()]] }
+        });
+      }
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
+    }
+
     // --- THE GRAND APP FETCH ---
     if (action === 'getAppDashboardData' && email) {
-      // Fetch all 5 sheets at the same time for maximum speed
       const [clientsRes, detailsRes, clientFormsRes, formsRes, remindersRes] = await Promise.all([
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: 'Clients!A:J' }),
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Details'!A:Q" }),
@@ -70,84 +118,41 @@ export const handler = async (event: any) => {
       const forms = formsRes.data.values || [];
       const reminders = remindersRes.data.values || [];
 
-      // Find the primary client row by Email
       const clientRow = clients.find(row => row[3] === email);
       if (!clientRow) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Client not found in database' }) };
 
-      const mobile = clientRow[1]; // Mobile is the primary key connector
-
-      // Find extra details using Mobile
+      const mobile = clientRow[1]; 
       const detailsRow = details.find(row => row[0] === mobile) || [];
-
-      // Find which Form IDs this user owns
       const userFormRows = clientForms.filter(row => row[1] === mobile);
       const userTemplateIds = userFormRows.map(row => row[2]); 
 
-      // Match those IDs to the master Forms list to get the actual templates
       const myTemplates = forms
         .filter(row => userTemplateIds.includes(row[2])) 
         .map(row => ({
-          frontly_id: row[0] || "",
-          title: row[1] || "",
-          id: row[2] || "",
-          category: row[3] || "",
-          type: row[4] || "",
-          credit: parseInt(row[5] || "0", 10),
-          formUrl: row[6] || "",
-          preview: row[7] || ""
+          frontly_id: row[0] || "", title: row[1] || "", id: row[2] || "", category: row[3] || "",
+          type: row[4] || "", credit: parseInt(row[5] || "0", 10), formUrl: row[6] || "", preview: row[7] || ""
         }));
 
-      // Parse Reminders specific to this user's email
       const userReminders = reminders
         .filter(row => row[1] === email) 
         .map(row => ({
-          mobile: row[0] || "",
-          email: row[1] || "",
-          type: row[2] || "",
-          date: row[3] || "",
-          status: row[4] || "",
-          plan: row[5] || ""
+          mobile: row[0] || "", email: row[1] || "", type: row[2] || "", date: row[3] || "", status: row[4] || "", plan: row[5] || ""
         }));
 
-      // Combine all client data into one clean profile object
       const clientProfile = {
-        frontly_id: clientRow[0] || "",
-        mobile: mobile,
-        company: clientRow[2] || "",
-        email: clientRow[3] || "",
-        credit: clientRow[4] || "0",
-        used: clientRow[5] || "0",
-        remaining: clientRow[6] || "0",
-        endDate: clientRow[7] || "",
-        status: clientRow[8] || "",
-        googleDrive: clientRow[9] || "",
-        website: detailsRow[3] || "",
-        socialMedia: detailsRow[4] || "",
-        supportPhone: detailsRow[5] || "",
-        supportEmail: detailsRow[6] || "",
-        darkLogo: detailsRow[7] || "",
-        lightLogo: detailsRow[8] || "",
-        coloredLogo: detailsRow[9] || "",
-        plan: detailsRow[10] || "",
-        planPrice: detailsRow[11] || "",
-        freeTemplates: detailsRow[12] || "0",
-        templatesUsed: detailsRow[13] || "0",
-        firstName: detailsRow[14] || "",
-        lastName: detailsRow[15] || "",
-        maxCredits: detailsRow[16] || "0"
+        frontly_id: clientRow[0] || "", mobile, company: clientRow[2] || "", email: clientRow[3] || "",
+        credit: clientRow[4] || "0", used: clientRow[5] || "0", remaining: clientRow[6] || "0",
+        endDate: clientRow[7] || "", status: clientRow[8] || "", googleDrive: clientRow[9] || "",
+        website: detailsRow[3] || "", socialMedia: detailsRow[4] || "", supportPhone: detailsRow[5] || "",
+        supportEmail: detailsRow[6] || "", darkLogo: detailsRow[7] || "", lightLogo: detailsRow[8] || "",
+        coloredLogo: detailsRow[9] || "", plan: detailsRow[10] || "", planPrice: detailsRow[11] || "",
+        freeTemplates: detailsRow[12] || "0", templatesUsed: detailsRow[13] || "0", firstName: detailsRow[14] || "",
+        lastName: detailsRow[15] || "", maxCredits: detailsRow[16] || "0"
       };
 
-      // Return everything perfectly packaged
       return { 
-        statusCode: 200, 
-        headers, 
-        body: JSON.stringify({ 
-          data: { 
-            profile: clientProfile, 
-            templates: myTemplates, 
-            reminders: userReminders 
-          } 
-        }) 
+        statusCode: 200, headers, 
+        body: JSON.stringify({ data: { profile: clientProfile, templates: myTemplates, reminders: userReminders } }) 
       };
     }
 
