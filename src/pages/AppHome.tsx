@@ -5,6 +5,8 @@ import { LayoutGrid, FolderOpen, MessageSquare } from "lucide-react";
 
 const AppHome = () => {
   const { client } = useAuth();
+  
+  // Safe fallback if Google Drive isn't set yet
   const driveUrl = client?.googleDrive
     ? `https://drive.google.com/drive/folders/${client.googleDrive}`
     : "#";
@@ -12,7 +14,10 @@ const AppHome = () => {
   return (
     <div className="space-y-8 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Welcome to Brandify, {client?.firstName}</h1>
+        {/* Uses the real firstName from Google Sheets, falls back to Company if missing */}
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          Welcome to Brandify, {client?.firstName || client?.company || "User"}
+        </h1>
         <p className="text-muted-foreground mt-1">Manage your branded marketing templates</p>
       </div>
 
@@ -29,7 +34,7 @@ const AppHome = () => {
           </Card>
         </Link>
 
-        <a href={driveUrl} target="_blank" rel="noopener noreferrer">
+        <a href={driveUrl} target={client?.googleDrive ? "_blank" : "_self"} rel="noopener noreferrer">
           <Card className="h-full border border-border bg-card transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer">
             <CardContent className="flex flex-col items-center justify-center p-6 text-center gap-3">
               <FolderOpen className="h-10 w-10 text-primary" />
