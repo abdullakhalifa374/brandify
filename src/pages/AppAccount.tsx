@@ -8,13 +8,51 @@ const AppAccount = () => {
 
   if (!client) return null;
 
-  // Helper to safely render logo images or fallback links
-  const renderLogo = (url: string, label: string) => {
-    if (!url) return <span className="text-xs text-muted-foreground">Not provided</span>;
+  // Helper to safely extract Google Drive ID and render the image/link
+  const renderLogo = (rawUrl: string, label: string) => {
+    if (!rawUrl || rawUrl.trim() === "") {
+      return (
+        <div className="flex flex-col items-center justify-center gap-2 p-3 border border-dashed border-border rounded-md bg-muted/20 h-28">
+          <span className="text-xs text-muted-foreground">Not provided</span>
+          <span className="text-[10px] font-medium text-muted-foreground uppercase">{label}</span>
+        </div>
+      );
+    }
+
+    // Extract the ID from standard Google Drive URLs or use the string if it's already an ID
+    const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/id=([a-zA-Z0-9_-]+)/);
+    const fileId = match ? match[1] : rawUrl;
+
+    // Use the exact URL format you requested
+    const formattedUrl = `http://googleusercontent.com/profile/picture/${fileId}`;
+    
+    // Fallback standard Google image URL in case the profile one acts up on certain browsers
+    const standardImgUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 p-3 border border-border rounded-md hover:bg-accent transition-colors">
-        <ExternalLink className="w-5 h-5 text-muted-foreground" />
-        <span className="text-xs font-medium">{label}</span>
+      <a 
+        href={formattedUrl} 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="flex flex-col items-center gap-2 p-3 border border-border rounded-md hover:bg-accent hover:border-primary/50 transition-all group h-28"
+      >
+        <div className="flex-1 w-full relative flex items-center justify-center overflow-hidden rounded-sm">
+          {/* We try to render the image directly in the UI! */}
+          <img 
+            src={standardImgUrl} 
+            alt={label} 
+            className="max-h-12 max-w-full object-contain group-hover:scale-105 transition-transform drop-shadow-sm"
+            onError={(e) => {
+              // If the image fails to load, fallback to an icon
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.parentElement?.classList.add('bg-muted');
+            }}
+          />
+        </div>
+        <div className="flex items-center gap-1.5 mt-auto">
+          <ExternalLink className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors" />
+          <span className="text-xs font-medium group-hover:text-primary transition-colors">{label}</span>
+        </div>
       </a>
     );
   };
