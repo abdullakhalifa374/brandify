@@ -1,9 +1,10 @@
 import { google } from 'googleapis';
 
 const SPREADSHEETS = {
-  main: '1tFv2_EPpNBeejwKTjQ_n7PFKTCCyZOCNcQwUVoRd8Yg', // Your main database for all 4 sheets
+  main: '1tFv2_EPpNBeejwKTjQ_n7PFKTCCyZOCNcQwUVoRd8Yg', // Clients, Details, Client Forms, Forms
   demo: '1q7GSF986adnX47toF_UZUn8Sjroxfo-dfh2Zpo76kYk',
-  marketplace: '1Q4bOSNOwc-sVR--TI0GE3xCqhQSNADEb3KHHKm0kcq0'
+  marketplace: '1Q4bOSNOwc-sVR--TI0GE3xCqhQSNADEb3KHHKm0kcq0',
+  reminders: '1Dal_T4o3fqZ8onWiyNyftNsIFK_S64-HAKwdH2Px2yg' // Reminders
 };
 
 export const handler = async (event: any) => {
@@ -28,7 +29,7 @@ export const handler = async (event: any) => {
 
     const sheets = google.sheets({ version: 'v4', auth });
     const body = JSON.parse(event.body || '{}');
-    const { action, email, data } = body;
+    const { action, email } = body;
 
     // --- DEMO FETCH ---
     if (action === 'getDemoTemplates') {
@@ -45,38 +46,44 @@ export const handler = async (event: any) => {
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Library'!A:H" }),
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Images'!A:D" })
       ]);
-      return { statusCode: 200, headers, body: JSON.stringify({ data: { library: libraryRes.data.values || [], images: imagesRes.data.values || [] } }) };
+      return { 
+        statusCode: 200, 
+        headers, 
+        body: JSON.stringify({ data: { library: libraryRes.data.values || [], images: imagesRes.data.values || [] } }) 
+      };
     }
 
-    // --- THE GRAND APP FETCH (NEW) ---
+    // --- THE GRAND APP FETCH ---
     if (action === 'getAppDashboardData' && email) {
-      // 1. Fetch all 4 sheets at the same time for speed
-      const [clientsRes, detailsRes, clientFormsRes, formsRes] = await Promise.all([
+      // Fetch all 5 sheets at the same time for maximum speed
+      const [clientsRes, detailsRes, clientFormsRes, formsRes, remindersRes] = await Promise.all([
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: 'Clients!A:J' }),
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Details'!A:Q" }),
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Forms'!A:C" }),
-        sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: 'Forms!A:H' })
+        sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: 'Forms!A:H' }),
+        sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.reminders, range: "'reminders'!A:F" })
       ]);
 
       const clients = clientsRes.data.values || [];
       const details = detailsRes.data.values || [];
       const clientForms = clientFormsRes.data.values || [];
       const forms = formsRes.data.values || [];
+      const reminders = remindersRes.data.values || [];
 
-      // 2. Find the primary client row by Email
+      // Find the primary client row by Email
       const clientRow = clients.find(row => row[3] === email);
       if (!clientRow) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Client not found in database' }) };
 
-      const mobile = clientRow[1]; // Mobile is the connector
+      const mobile = clientRow[1]; // Mobile is the primary key connector
 
-      // 3. Find extra details using Mobile
+      // Find extra details using Mobile
       const detailsRow = details.find(row => row[0] === mobile) || [];
 
-      // 4. Find which Form IDs this user owns
+      // Find which Form IDs this user owns
       const userFormRows = clientForms.filter(row => row[1] === mobile);
       const userTemplateIds = userFormRows.map(row => row[2]); 
 
-      // 5. Match those IDs to the master Forms list to get the actual templates
+      // Match those IDs to the master Forms list to get the actual templates
       const myTemplates = forms
         .filter(row => userTemplateIds.includes(row[2])) 
         .map(row => ({
@@ -90,7 +97,19 @@ export const handler = async (event: any) => {
           preview: row[7] || ""
         }));
 
-      // 6. Combine all client data into one clean profile object
+      // Parse Reminders specific to this user's email
+      const userReminders = reminders
+        .filter(row => row[1] === email) 
+        .map(row => ({
+          mobile: row[0] || "",
+          email: row[1] || "",
+          type: row[2] || "",
+          date: row[3] || "",
+          status: row[4] || "",
+          plan: row[5] || ""
+        }));
+
+      // Combine all client data into one clean profile object
       const clientProfile = {
         frontly_id: clientRow[0] || "",
         mobile: mobile,
@@ -102,7 +121,6 @@ export const handler = async (event: any) => {
         endDate: clientRow[7] || "",
         status: clientRow[8] || "",
         googleDrive: clientRow[9] || "",
-        // Extended Details
         website: detailsRow[3] || "",
         socialMedia: detailsRow[4] || "",
         supportPhone: detailsRow[5] || "",
@@ -119,11 +137,17 @@ export const handler = async (event: any) => {
         maxCredits: detailsRow[16] || "0"
       };
 
-      // Return it all to the frontend perfectly packaged!
+      // Return everything perfectly packaged
       return { 
         statusCode: 200, 
         headers, 
-        body: JSON.stringify({ data: { profile: clientProfile, templates: myTemplates } }) 
+        body: JSON.stringify({ 
+          data: { 
+            profile: clientProfile, 
+            templates: myTemplates, 
+            reminders: userReminders 
+          } 
+        }) 
       };
     }
 
