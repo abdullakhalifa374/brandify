@@ -42,12 +42,15 @@ export const getAppDashboardData = async (userEmail: string) => {
   return await fetchFromSheets({ action: 'getAppDashboardData', email: userEmail });
 };
 
-// Add these to the very bottom of src/lib/googleSheets.ts
-
 export const updateClientProfile = async (mobile: string, profileData: any) => {
   return await fetchFromSheets({ action: 'updateProfile', mobile, data: profileData });
 };
 
 export const claimFreeTemplate = async (mobile: string, templateId: string) => {
   return await fetchFromSheets({ action: 'claimFreeTemplate', mobile, data: { templateId } });
+};
+
+// --- NEW: DRIVE API HELPER ---
+export const getDriveAssets = async (folderId: string) => {
+  return await fetchFromSheets({ action: 'getDriveAssets', data: { folderId } });
 };
