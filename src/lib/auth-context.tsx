@@ -8,22 +8,51 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { auth } from "./firebase";
-import { mockClient, type Client } from "./mock-data";
+import { getAppDashboardData } from "./googleSheets"; // <-- Import the new fetcher
+
+// 1. Define the real types based on your Google Sheets data
+export interface ClientProfile {
+  frontly_id: string;
+  mobile: string;
+  company: string;
+  email: string;
+  credit: string | number;
+  used: string | number;
+  remaining: string | number;
+  endDate: string;
+  status: string;
+  googleDrive: string;
+  website: string;
+  socialMedia: string;
+  supportPhone: string;
+  supportEmail: string;
+  darkLogo: string;
+  lightLogo: string;
+  coloredLogo: string;
+  plan: string;
+  planPrice: string;
+  freeTemplates: string | number;
+  templatesUsed: string | number;
+  firstName: string;
+  lastName: string;
+  maxCredits: string | number;
+}
+
+export interface ClientTemplate {
+  frontly_id: string;
+  title: string;
+  id: string;
+  category: string;
+  type: string;
+  credit: number;
+  formUrl: string;
+  preview: string;
+}
 
 interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
-}
-
-interface AuthContextType {
-  user: AuthUser | null;
-  client: Client | null;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (data: SignupData) => Promise<void>;
-  logout: () => void;
-  resetPassword: (email: string) => Promise<void>;
 }
 
 interface SignupData {
@@ -33,6 +62,17 @@ interface SignupData {
   phone: string;
   company: string;
   password: string;
+}
+
+interface AuthContextType {
+  user: AuthUser | null;
+  client: ClientProfile | null;
+  templates: ClientTemplate[]; // <-- Added templates to global state
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (data: SignupData) => Promise<void>;
+  logout: () => void;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -45,27 +85,40 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [client, setClient] = useState<Client | null>(null);
+  const [client, setClient] = useState<ClientProfile | null>(null);
+  const [templates, setTemplates] = useState<ClientTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser && firebaseUser.email) {
+        // Set basic Firebase user
         const displayName = firebaseUser.displayName || "";
         const [firstName = "", lastName = ""] = displayName.split(" ");
-        const authUser: AuthUser = {
-          email: firebaseUser.email || "",
-          firstName,
-          lastName,
-        };
-        setUser(authUser);
-        // TODO: Replace with Google Sheets fetch by email when backend is available
-        setClient(mockClient);
+        setUser({ email: firebaseUser.email, firstName, lastName });
+
+        // Fetch real data from Google Sheets
+        try {
+          const result = await getAppDashboardData(firebaseUser.email);
+          if (result && result.profile) {
+            setClient(result.profile);
+            setTemplates(result.templates || []);
+          } else {
+            setClient(null);
+            setTemplates([]);
+          }
+        } catch (error) {
+          console.error("Failed to load client data from Sheets:", error);
+          setClient(null);
+          setTemplates([]);
+        }
+
       } else {
         setUser(null);
         setClient(null);
+        setTemplates([]);
       }
-      setIsLoading(false);
+      setIsLoading(false); // Stop loading ONLY after data is fetched
     });
 
     return () => unsubscribe();
@@ -80,7 +133,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await updateProfile(credential.user, {
       displayName: `${data.firstName} ${data.lastName}`,
     });
-    // TODO: Write to Google Sheets when backend is available
   };
 
   const logout = () => {
@@ -92,7 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, client, isLoading, login, signup, logout, resetPassword }}>
+    <AuthContext.Provider value={{ user, client, templates, isLoading, login, signup, logout, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
