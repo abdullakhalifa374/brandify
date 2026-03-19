@@ -51,11 +51,13 @@ const AppAccount = () => {
     }
   };
 
+  // Trigger file selection window
   const triggerLogoUpload = (columnName: string) => {
     setTargetLogoCol(columnName);
     fileInputRef.current?.click();
   };
 
+  // Convert file to Base64 and send to Netlify
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -103,13 +105,17 @@ const AppAccount = () => {
 
   const renderLogo = (rawUrl: string, label: string, columnKey: string) => {
     const isCurrentlyUploading = isUploadingLogo === columnKey;
-    let content;
+    
+    // Feature Request: Make Light Logo background darker so white logos are visible
+    const bgClass = columnKey === "lightLogo" ? "bg-slate-800 border-slate-700" : "bg-muted/20 border-border";
+    const textClass = columnKey === "lightLogo" ? "text-slate-300" : "text-muted-foreground";
 
+    let content;
     if (!rawUrl || rawUrl.trim() === "") {
       content = (
-        <div className="flex flex-col items-center justify-center gap-2 p-3 border border-dashed border-border rounded-md bg-muted/20 h-28 w-full group relative">
-           <span className="text-xs text-muted-foreground group-hover:opacity-0 transition-opacity">Not provided</span>
-           <span className="text-[10px] font-medium text-muted-foreground uppercase group-hover:opacity-0 transition-opacity">{label}</span>
+        <div className={`flex flex-col items-center justify-center gap-2 p-3 border border-dashed rounded-md h-28 w-full group relative ${bgClass}`}>
+           <span className={`text-xs group-hover:opacity-0 transition-opacity ${textClass}`}>Not provided</span>
+           <span className={`text-[10px] font-medium uppercase group-hover:opacity-0 transition-opacity ${textClass}`}>{label}</span>
            <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 bg-background/80 transition-opacity rounded-md">
               <UploadCloud className="w-5 h-5 text-primary mb-1" />
               <span className="text-[10px] font-semibold text-primary">Upload</span>
@@ -119,10 +125,10 @@ const AppAccount = () => {
     } else {
       const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/id=([a-zA-Z0-9_-]+)/);
       const fileId = match ? match[1] : rawUrl;
-      const formattedUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+      const formattedUrl = `http://googleusercontent.com/profile/picture/${fileId}`;
 
       content = (
-        <div className="flex flex-col items-center gap-2 p-3 border border-border rounded-md hover:bg-accent hover:border-primary/50 transition-all group h-28 w-full relative overflow-hidden cursor-pointer">
+        <div className={`flex flex-col items-center gap-2 p-3 border rounded-md hover:border-primary/50 transition-all group h-28 w-full relative overflow-hidden cursor-pointer ${bgClass}`}>
           <div className="flex-1 w-full relative flex items-center justify-center overflow-hidden rounded-sm group-hover:opacity-20 transition-opacity">
             <img 
               src={formattedUrl} alt={label} 
@@ -131,8 +137,8 @@ const AppAccount = () => {
             />
           </div>
           <div className="flex items-center gap-1.5 mt-auto group-hover:opacity-0 transition-opacity">
-            <ExternalLink className="w-3 h-3 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground">{label}</span>
+            <ExternalLink className={`w-3 h-3 ${textClass}`} />
+            <span className={`text-xs font-medium ${textClass}`}>{label}</span>
           </div>
           <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 bg-background/80 transition-opacity rounded-md">
             <UploadCloud className="w-5 h-5 text-primary mb-1" />
@@ -163,7 +169,7 @@ const AppAccount = () => {
 
   return (
     <div className="space-y-6 max-w-5xl pb-10">
-      {/* Hidden file input used by the logo buttons */}
+      {/* Hidden file input for logo uploads */}
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -178,7 +184,6 @@ const AppAccount = () => {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* PROFILE & BUSINESS */}
         <div className="space-y-6">
           <Card>
             <CardHeader className="pb-3">
@@ -269,7 +274,6 @@ const AppAccount = () => {
           </Card>
         </div>
 
-        {/* BILLING & REMINDERS */}
         <div className="space-y-6">
           <Card className="bg-primary/5 border-primary/20">
             <CardHeader className="pb-3">
