@@ -1,11 +1,11 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { updateClientProfile } from "@/lib/googleSheets";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CalendarClock, Link2, Mail, Phone, ExternalLink, Edit2, Save, Loader2, UploadCloud } from "lucide-react";
+import { CalendarClock, Link2, Mail, Phone, ExternalLink, Edit2, Save, Loader2, ImagePlus } from "lucide-react";
 
 const AppAccount = () => {
   const { client, reminders } = useAuth();
@@ -20,12 +20,10 @@ const AppAccount = () => {
     supportEmail: ""
   });
 
-  // Logo Upload State
-  const [isUploadingLogo, setIsUploadingLogo] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [targetLogoCol, setTargetLogoCol] = useState<string>("");
-
   if (!client) return null;
+
+  // Dynamically build the external form URL with the user's data
+  const updateLogosUrl = `https://forms.brandify.zone/update-information/?mobile=${encodeURIComponent(client.mobile)}&email=${encodeURIComponent(client.email)}`;
 
   const handleEditToggle = () => {
     if (!isEditing) {
@@ -51,133 +49,42 @@ const AppAccount = () => {
     }
   };
 
-  // Trigger file selection window
-  const triggerLogoUpload = (columnName: string) => {
-    setTargetLogoCol(columnName);
-    fileInputRef.current?.click();
-  };
-
-  // Convert file to Base64 and send to Netlify
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 3 * 1024 * 1024) { 
-      alert("File is too large. Please select an image under 3MB.");
-      return;
-    }
-
-    setIsUploadingLogo(targetLogoCol);
-    
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = async () => {
-      const base64Data = reader.result?.toString().split(',')[1];
-      
-      try {
-        const response = await fetch('/.netlify/functions/google-sheets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'uploadLogo',
-            mobile: client.mobile,
-            data: {
-              fileName: `${client.company.replace(/\s+/g, '_')}_${targetLogoCol}`,
-              mimeType: file.type,
-              base64: base64Data,
-              columnName: targetLogoCol // "darkLogo", "lightLogo", or "coloredLogo"
-            }
-          })
-        });
-
-        if (!response.ok) throw new Error("Failed to upload logo");
-        window.location.reload();
-
-      } catch (error) {
-        console.error("Upload failed:", error);
-        alert("Failed to upload logo. Please try again.");
-      } finally {
-        setIsUploadingLogo(null);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      }
-    };
-  };
-
   const renderLogo = (rawUrl: string, label: string, columnKey: string) => {
-    const isCurrentlyUploading = isUploadingLogo === columnKey;
-    
     // Feature Request: Make Light Logo background darker so white logos are visible
     const bgClass = columnKey === "lightLogo" ? "bg-slate-800 border-slate-700" : "bg-muted/20 border-border";
     const textClass = columnKey === "lightLogo" ? "text-slate-300" : "text-muted-foreground";
 
-    let content;
     if (!rawUrl || rawUrl.trim() === "") {
-      content = (
-        <div className={`flex flex-col items-center justify-center gap-2 p-3 border border-dashed rounded-md h-28 w-full group relative ${bgClass}`}>
-           <span className={`text-xs group-hover:opacity-0 transition-opacity ${textClass}`}>Not provided</span>
-           <span className={`text-[10px] font-medium uppercase group-hover:opacity-0 transition-opacity ${textClass}`}>{label}</span>
-           <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 bg-background/80 transition-opacity rounded-md">
-              <UploadCloud className="w-5 h-5 text-primary mb-1" />
-              <span className="text-[10px] font-semibold text-primary">Upload</span>
-           </div>
+      return (
+        <div className={`flex flex-col items-center justify-center gap-2 p-3 border border-dashed rounded-md h-28 w-full ${bgClass}`}>
+           <span className={`text-xs ${textClass}`}>Not provided</span>
+           <span className={`text-[10px] font-medium uppercase ${textClass}`}>{label}</span>
         </div>
       );
-    } else {
-      const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/id=([a-zA-Z0-9_-]+)/);
-      const fileId = match ? match[1] : rawUrl;
-      const formattedUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+    } 
 
-      content = (
-        <div className={`flex flex-col items-center gap-2 p-3 border rounded-md hover:border-primary/50 transition-all group h-28 w-full relative overflow-hidden cursor-pointer ${bgClass}`}>
-          <div className="flex-1 w-full relative flex items-center justify-center overflow-hidden rounded-sm group-hover:opacity-20 transition-opacity">
-            <img 
-              src={formattedUrl} alt={label} 
-              className="max-h-12 max-w-full object-contain drop-shadow-sm"
-              onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.classList.add('bg-muted'); }}
-            />
-          </div>
-          <div className="flex items-center gap-1.5 mt-auto group-hover:opacity-0 transition-opacity">
-            <ExternalLink className={`w-3 h-3 ${textClass}`} />
-            <span className={`text-xs font-medium ${textClass}`}>{label}</span>
-          </div>
-          <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 bg-background/80 transition-opacity rounded-md">
-            <UploadCloud className="w-5 h-5 text-primary mb-1" />
-            <span className="text-[10px] font-semibold text-primary">Replace Logo</span>
-          </div>
-        </div>
-      );
-    }
+    const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/id=([a-zA-Z0-9_-]+)/);
+    const fileId = match ? match[1] : rawUrl;
+    const formattedUrl = `http://googleusercontent.com/profile/picture/${fileId}`;
 
     return (
-      <div className="relative">
-        <button 
-          onClick={() => triggerLogoUpload(columnKey)} 
-          disabled={isUploadingLogo !== null}
-          className="w-full text-left focus:outline-none rounded-md"
-        >
-          {content}
-        </button>
-        {isCurrentlyUploading && (
-          <div className="absolute inset-0 bg-background/90 z-10 flex flex-col items-center justify-center rounded-md border border-primary">
-            <Loader2 className="w-6 h-6 text-primary animate-spin mb-2" />
-            <span className="text-[10px] font-medium text-primary">Uploading...</span>
-          </div>
-        )}
+      <div className={`flex flex-col items-center gap-2 p-3 border rounded-md h-28 w-full relative overflow-hidden ${bgClass}`}>
+        <div className="flex-1 w-full relative flex items-center justify-center overflow-hidden rounded-sm">
+          <img 
+            src={formattedUrl} alt={label} 
+            className="max-h-12 max-w-full object-contain drop-shadow-sm"
+            onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.classList.add('bg-muted'); }}
+          />
+        </div>
+        <div className="flex items-center gap-1.5 mt-auto">
+          <span className={`text-[10px] font-medium uppercase ${textClass}`}>{label}</span>
+        </div>
       </div>
     );
   };
 
   return (
     <div className="space-y-6 max-w-5xl pb-10">
-      {/* Hidden file input for logo uploads */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileChange} 
-        accept="image/png, image/jpeg, image/webp, image/svg+xml" 
-        className="hidden" 
-      />
-
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Account Information</h1>
         <p className="text-muted-foreground">Manage your profile, billing, and brand settings.</p>
@@ -261,14 +168,24 @@ const AppAccount = () => {
           </Card>
 
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Brand Assets (Logos)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-3 mb-4">
                 {renderLogo(client.darkLogo, "Dark Logo", "darkLogo")}
                 {renderLogo(client.lightLogo, "Light Logo", "lightLogo")}
                 {renderLogo(client.coloredLogo, "Colored Logo", "coloredLogo")}
+              </div>
+              
+              {/* EXTERNAL UPDATE FORM BUTTON */}
+              <div className="flex justify-end border-t border-border pt-4">
+                <Button asChild variant="outline" size="sm" className="w-full md:w-auto hover:bg-primary/5">
+                  <a href={updateLogosUrl} target="_blank" rel="noopener noreferrer">
+                    <ImagePlus className="w-4 h-4 mr-2" />
+                    Replace Logos
+                  </a>
+                </Button>
               </div>
             </CardContent>
           </Card>
