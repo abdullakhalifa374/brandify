@@ -31,7 +31,7 @@ interface MarketplaceTemplate {
 const FORMS_SERVICES_BASE = "https://forms.brandify.zone/services/";
 
 const Marketplace = () => {
-  const { user, client } = useAuth();
+  const { user, client, templates: ownedClientTemplates } = useAuth(); // NEW: Pulling owned templates from context
   const navigate = useNavigate();
   
   const [templates, setTemplates] = useState<MarketplaceTemplate[]>([]);
@@ -43,7 +43,7 @@ const Marketplace = () => {
   // Modal & Image State
   const [selectedTemplate, setSelectedTemplate] = useState<MarketplaceTemplate | null>(null);
   const [selectedColor, setSelectedColor] = useState<string>("Default"); 
-  const [activeImageUrl, setActiveImageUrl] = useState<string>(""); // NEW: Tracks the currently viewed large image
+  const [activeImageUrl, setActiveImageUrl] = useState<string>(""); 
   const [isClaiming, setIsClaiming] = useState(false);
 
   useEffect(() => {
@@ -61,7 +61,6 @@ const Marketplace = () => {
            return;
         }
 
-        // Parse images from the child sheet
         const parsedImages = imageRows.slice(1).map((row: any[]) => ({
           template_id: row[1] || "",
           color: row[2] || "Default",
@@ -72,8 +71,6 @@ const Marketplace = () => {
 
         const formattedData: MarketplaceTemplate[] = libraryRows.slice(1).map((row: any[]) => {
           const tId = row[1] || "";
-          
-          // Connect all child images to this parent template
           const templateImages = parsedImages.filter((img: any) => img.template_id === tId);
 
           const isVariation = row[8]?.toLowerCase() === 'yes';
@@ -114,17 +111,14 @@ const Marketplace = () => {
     loadMarketplace();
   }, []);
 
-  // When a template is clicked, set default states and find the first image
   const handleViewDetails = (template: MarketplaceTemplate) => {
     setSelectedTemplate(template);
     setSelectedColor("Default"); 
     
-    // Find the first image that belongs to the "Default" color
     const defaultImages = template.gallery.filter(img => img.color.toLowerCase() === "default");
     setActiveImageUrl(defaultImages.length > 0 ? defaultImages[0].url : template.mainPreview);
   };
 
-  // When the color dropdown changes, update the main image to match the new color
   const handleColorChange = (newColor: string) => {
     setSelectedColor(newColor);
     if (selectedTemplate) {
@@ -141,7 +135,6 @@ const Marketplace = () => {
       return;
     }
 
-    // Format the ID accurately (e.g. travel-1-red)
     const formattedTemplateId = `${template.template_id}-${selectedColor.toLowerCase()}`;
 
     if (hasFreeClaims) {
@@ -168,17 +161,33 @@ const Marketplace = () => {
   const categories = Array.from(new Set(templates.map(t => t.category).filter(Boolean)));
   const types = Array.from(new Set(templates.map(t => t.type).filter(Boolean)));
 
-  const filteredTemplates = templates.filter(f => {
+  // NEW: Filter logic to separate owned vs available
+  // We extract the base IDs from the user's owned templates (e.g. 'travel-1' from 'travel-1-red')
+  const ownedBaseIds = ownedClientTemplates?.map(t => {
+    const parts = t.id.split('-');
+    if (parts.length > 1 && ['default','red','blue','green','yellow','orange','pink','purple','black','gray','white'].includes(parts[parts.length-1].toLowerCase())) {
+        parts.pop();
+    }
+    return parts.join('-');
+  }) || [];
+
+  // 1. Templates they DO NOT own (Available to buy/claim)
+  const availableTemplates = templates.filter(f => {
+    if (ownedBaseIds.includes(f.template_id)) return false; // Hide owned ones
     if (category !== "all" && f.category !== category) return false;
     if (type !== "all" && f.type !== type) return false;
     return true;
   });
 
-  // Filter thumbnails to ONLY show images belonging to the currently selected color
+  // 2. Templates they ALREADY own
+  const myOwnedTemplates = templates.filter(f => ownedBaseIds.includes(f.template_id));
+
   const visibleThumbnails = selectedTemplate?.gallery.filter(img => img.color.toLowerCase() === selectedColor.toLowerCase()) || [];
 
   return (
-    <div className="container py-8 space-y-8">
+    <div className="container py-8 space-y-12">
+      
+      {/* HEADER & FILTERS */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Marketplace</h1>
@@ -196,23 +205,51 @@ const Marketplace = () => {
         </div>
       )}
 
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-24 space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading marketplace...</p>
-        </div>
-      ) : filteredTemplates.length === 0 ? (
-        <div className="text-center py-16 bg-card rounded-lg border border-border mt-0">
-          <p className="text-muted-foreground">No templates found for these filters.</p>
-        </div>
-      ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-0">
-          {filteredTemplates.map(f => (
-            <TemplateCard key={f.template_id || Math.random().toString()} preview={f.mainPreview} title={f.title} category={f.category} type={f.type} price={f.price} ctaLabel="View Details" onCtaClick={() => handleViewDetails(f)} />
-          ))}
+      {/* AVAILABLE TEMPLATES FEED */}
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-24 space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading marketplace...</p>
+          </div>
+        ) : availableTemplates.length === 0 ? (
+          <div className="text-center py-16 bg-card rounded-lg border border-border mt-0">
+            <p className="text-muted-foreground">No available templates found for these filters.</p>
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-0">
+            {availableTemplates.map(f => (
+              <TemplateCard key={f.template_id || Math.random().toString()} preview={f.mainPreview} title={f.title} category={f.category} type={f.type} price={f.price} ctaLabel="View Details" onCtaClick={() => handleViewDetails(f)} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* NEW: ALREADY OWNED SECTION */}
+      {!isLoading && myOwnedTemplates.length > 0 && (
+        <div className="space-y-4 pt-8 border-t border-border">
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Templates You Own</h2>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-0 opacity-75">
+            {myOwnedTemplates.map(f => (
+              <TemplateCard 
+                key={`owned-${f.template_id}`} 
+                preview={f.mainPreview} 
+                title={f.title} 
+                category={f.category} 
+                type={f.type} 
+                price={0} // Hide price since they own it
+                ctaLabel="Already Owned" 
+                onCtaClick={() => {
+                   alert("You already own a variation of this template! Check the 'My Templates' tab in your dashboard.");
+                   navigate("/app/templates");
+                }} 
+              />
+            ))}
+          </div>
         </div>
       )}
 
+      {/* PURCHASE MODAL */}
       <Dialog open={!!selectedTemplate} onOpenChange={(open) => !open && setSelectedTemplate(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           {selectedTemplate && (
@@ -222,7 +259,6 @@ const Marketplace = () => {
                 <DialogDescription className="text-base mt-2">{selectedTemplate.description || "No description provided."}</DialogDescription>
               </DialogHeader>
               
-              {/* MAIN IMAGE DISPLAY */}
               <div className="rounded-lg overflow-hidden border border-border bg-muted aspect-video relative flex items-center justify-center">
                 <img 
                   src={activeImageUrl} 
@@ -231,7 +267,6 @@ const Marketplace = () => {
                 />
               </div>
 
-              {/* THUMBNAIL GALLERY (Only shows if this color has more than 1 image) */}
               {visibleThumbnails.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {visibleThumbnails.map((img, idx) => (
@@ -248,7 +283,6 @@ const Marketplace = () => {
                 </div>
               )}
 
-              {/* COLOR DROPDOWN FILTER */}
               {selectedTemplate.variation && selectedTemplate.availableColors.length > 1 && (
                 <div className="flex items-center gap-3 bg-muted/30 p-4 rounded-md border border-border">
                   <span className="text-sm font-medium text-foreground">Select Color Variation:</span>
@@ -265,7 +299,6 @@ const Marketplace = () => {
                 </div>
               )}
 
-              {/* FOOTER */}
               <div className="flex items-center justify-between pt-4 border-t border-border">
                 <div>
                   <p className="text-sm text-muted-foreground">Price</p>
