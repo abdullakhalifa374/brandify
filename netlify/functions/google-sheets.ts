@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { Readable } from 'stream'; // Needed for file uploads
+import { Readable } from 'stream'; // NEW: Required for processing file uploads
 
 const SPREADSHEETS = {
   main: '1tFv2_EPpNBeejwKTjQ_n7PFKTCCyZOCNcQwUVoRd8Yg', // Clients, Details, Client Forms, Forms
@@ -28,7 +28,7 @@ export const handler = async (event: any) => {
       scopes: [
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive.readonly',
-        'https://www.googleapis.com/auth/drive.file' // NEW: Needed to create/upload files
+        'https://www.googleapis.com/auth/drive.file' // NEW: Added permission to upload files
       ],
     });
 
@@ -41,12 +41,12 @@ export const handler = async (event: any) => {
     // --- UPLOAD LOGO TO DRIVE & UPDATE SHEET (NEW) ---
     if (action === 'uploadLogo' && mobile && data) {
       try {
-        // 1. Upload to Google Drive folder
+        // 1. Convert base64 back to file and upload to Google Drive folder
         const buffer = Buffer.from(data.base64, 'base64');
         const driveRes = await drive.files.create({
           requestBody: {
             name: data.fileName,
-            parents: ['1xkFw128Xbh0y8-Z4OCkkR4yrvTtC9IKC'] // Your master logos folder
+            parents: ['1xkFw128Xbh0y8-Z4OCkkR4yrvTtC9IKC'] // Your exact logo folder ID
           },
           media: {
             mimeType: data.mimeType,
@@ -57,7 +57,7 @@ export const handler = async (event: any) => {
         
         const newFileId = driveRes.data.id;
 
-        // 2. Update the correct column in the Google Sheet
+        // 2. Update the correct column in the Google Sheet (H, I, or J)
         const detailsRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Details'!A:A" });
         const rows = detailsRes.data.values || [];
         const rowIndex = rows.findIndex((row: any[]) => row[0] === mobile);
@@ -91,7 +91,7 @@ export const handler = async (event: any) => {
         const response = await drive.files.list({
           q: `'${data.folderId}' in parents and trashed=false`,
           fields: 'files(id, name, mimeType, webContentLink, thumbnailLink)',
-          orderBy: 'createdTime desc' 
+          orderBy: 'createdTime desc' // Shows newest images first
         });
         return { statusCode: 200, headers, body: JSON.stringify({ data: response.data.files || [] }) };
       } catch (err: any) {
@@ -116,7 +116,8 @@ export const handler = async (event: any) => {
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Images'!A:D" })
       ]);
       return { 
-        statusCode: 200, headers, 
+        statusCode: 200, 
+        headers, 
         body: JSON.stringify({ data: { library: libraryRes.data.values || [], images: imagesRes.data.values || [] } }) 
       };
     }
