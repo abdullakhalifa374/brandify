@@ -125,7 +125,7 @@ const AppAccount = () => {
     } else {
       const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/id=([a-zA-Z0-9_-]+)/);
       const fileId = match ? match[1] : rawUrl;
-      const formattedUrl = `http://googleusercontent.com/profile/picture/${fileId}`;
+      const formattedUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
 
       content = (
         <div className={`flex flex-col items-center gap-2 p-3 border rounded-md hover:border-primary/50 transition-all group h-28 w-full relative overflow-hidden cursor-pointer ${bgClass}`}>
