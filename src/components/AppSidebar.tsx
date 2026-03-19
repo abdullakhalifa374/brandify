@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, User, MessageSquare, FolderOpen, LogOut } from "lucide-react";
+import { Home, LayoutGrid, User, MessageSquare, FolderOpen, LogOut, ShoppingCart, PlayCircle, BookOpen } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
@@ -22,6 +22,13 @@ const navItems = [
   { title: "Contact Us", url: "/app/contact", icon: MessageSquare },
 ];
 
+// NEW: Added external/resource links here
+const resourceItems = [
+  { title: "Marketplace", url: "/marketplace", icon: ShoppingCart, external: false },
+  { title: "Demo", url: "/demo", icon: PlayCircle, external: false },
+  { title: "Documentation", url: "https://www.brandify.zone/documentation", icon: BookOpen, external: true },
+];
+
 const AppSidebar = () => {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
@@ -40,7 +47,12 @@ const AppSidebar = () => {
             <span className="text-lg font-bold text-foreground tracking-tight">Brandify</span>
           )}
         </div>
+
+        {/* MAIN APPLICATION LINKS */}
         <SidebarGroup>
+          <div className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            {!collapsed && "Application"}
+          </div>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map(item => (
@@ -69,6 +81,35 @@ const AppSidebar = () => {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* NEW: RESOURCES LINKS */}
+        <SidebarGroup className="mt-4">
+          <div className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            {!collapsed && "Resources"}
+          </div>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {resourceItems.map(item => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    {item.external ? (
+                       <a href={item.url} target="_blank" rel="noopener noreferrer" className="flex items-center hover:bg-accent/50 text-muted-foreground px-2 py-1.5 rounded-md text-sm">
+                         <item.icon className="mr-2 h-4 w-4" />
+                         {!collapsed && <span>{item.title}</span>}
+                       </a>
+                    ) : (
+                       <NavLink to={item.url} className="hover:bg-accent/50 text-muted-foreground px-2 py-1.5 rounded-md text-sm" activeClassName="bg-accent text-primary font-medium">
+                         <item.icon className="mr-2 h-4 w-4" />
+                         {!collapsed && <span>{item.title}</span>}
+                       </NavLink>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
       </SidebarContent>
       <SidebarFooter className="p-3">
         <Button variant="ghost" size="sm" className="w-full justify-start" onClick={logout}>
