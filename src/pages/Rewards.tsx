@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { getRewardsTracker } from "@/lib/googleSheets";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Star, Instagram, Video, ExternalLink, UploadCloud, Sparkles, Gift } from "lucide-react";
+import { Star, Instagram, Video, ExternalLink, UploadCloud, Sparkles, Gift, CheckCircle2, Loader2 } from "lucide-react";
 
 // Task Data Structure
 interface Task {
@@ -81,15 +83,43 @@ const rewardTasks: Task[] = [
 ];
 
 const Rewards = () => {
+  const { client } = useAuth();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  
+  // State to hold task completion status from Google Sheets
+  const [taskStatus, setTaskStatus] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Future OCR integration state
-  const [isUploading, setIsUploading] = useState(false);
+  useEffect(() => {
+    async function fetchRewards() {
+      if (client?.mobile) {
+        setIsLoading(true);
+        try {
+          const statuses = await getRewardsTracker(client.mobile);
+          setTaskStatus(statuses || {});
+        } catch (error) {
+          console.error("Failed to fetch reward statuses", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    }
+    fetchRewards();
+  }, [client]);
 
   const handleUploadProof = () => {
     // This is a mockup for Phase 2 OCR integration
     alert("In Phase 2, this will upload the screenshot and process it via OCR!");
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Checking your available rewards...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-6xl pb-10">
@@ -106,33 +136,44 @@ const Rewards = () => {
 
       {/* TASKS GRID */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {rewardTasks.map((task) => (
-          <Card key={task.id} className="flex flex-col h-full transition-all hover:shadow-md hover:border-primary/50 relative overflow-hidden group">
-            {/* Reward Badge Banner */}
-            <div className="absolute top-3 right-3 z-10">
-              <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 font-bold px-3 py-1">
-                +{task.rewardAmount} {task.rewardType}
-              </Badge>
-            </div>
+        {rewardTasks.map((task) => {
+          const isCompleted = taskStatus[task.id] === 'yes';
 
-            <CardHeader className="pb-4 pt-6">
-              <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center mb-4 group-hover:bg-primary/10 transition-colors">
-                <task.icon className="w-6 h-6 text-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <CardTitle className="text-lg leading-tight">{task.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col flex-grow justify-between gap-6">
-              <p className="text-sm text-muted-foreground">{task.description}</p>
+          return (
+            <Card key={task.id} className={`flex flex-col h-full transition-all relative overflow-hidden group ${isCompleted ? 'opacity-60 bg-muted/30 border-dashed' : 'hover:shadow-md hover:border-primary/50'}`}>
               
-              <Button 
-                onClick={() => setSelectedTask(task)} 
-                className="w-full mt-auto group-hover:bg-primary/90"
-              >
-                Start Task
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+              {/* Reward Badge Banner */}
+              <div className="absolute top-3 right-3 z-10">
+                <Badge variant={isCompleted ? "outline" : "secondary"} className={isCompleted ? "text-muted-foreground" : "bg-primary/10 text-primary border-primary/20 font-bold"}>
+                  {isCompleted ? "Claimed" : `+${task.rewardAmount} ${task.rewardType}`}
+                </Badge>
+              </div>
+
+              <CardHeader className="pb-4 pt-6">
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-colors ${isCompleted ? 'bg-muted' : 'bg-muted group-hover:bg-primary/10'}`}>
+                  <task.icon className={`w-6 h-6 transition-colors ${isCompleted ? 'text-muted-foreground' : 'text-foreground group-hover:text-primary'}`} />
+                </div>
+                <CardTitle className="text-lg leading-tight">{task.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col flex-grow justify-between gap-6">
+                <p className="text-sm text-muted-foreground">{task.description}</p>
+                
+                {isCompleted ? (
+                  <Button variant="secondary" className="w-full mt-auto cursor-not-allowed bg-green-500/10 text-green-700 hover:bg-green-500/10 border border-green-500/20">
+                    <CheckCircle2 className="w-4 h-4 mr-2" /> Completed
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={() => setSelectedTask(task)} 
+                    className="w-full mt-auto group-hover:bg-primary/90"
+                  >
+                    Start Task
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
 
         {/* COMING SOON CARD */}
         <Card className="flex flex-col h-full border-dashed border-2 bg-muted/20 items-center justify-center text-center p-8 opacity-70">
