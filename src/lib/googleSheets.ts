@@ -54,3 +54,8 @@ export const claimFreeTemplate = async (mobile: string, templateId: string) => {
 export const getDriveAssets = async (folderId: string) => {
   return await fetchFromSheets({ action: 'getDriveAssets', data: { folderId } });
 };
+
+// --- REWARDS API HELPER ---
+export const getRewardsTracker = async (mobile: string) => {
+  return await fetchFromSheets({ action: 'getRewardsTracker', mobile });
+};
