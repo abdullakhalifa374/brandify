@@ -1,11 +1,12 @@
 import { google } from 'googleapis';
-import { Readable } from 'stream'; // NEW: Required for processing file uploads
+import { Readable } from 'stream'; 
 
 const SPREADSHEETS = {
-  main: '1tFv2_EPpNBeejwKTjQ_n7PFKTCCyZOCNcQwUVoRd8Yg', // Clients, Details, Client Forms, Forms
+  main: '1tFv2_EPpNBeejwKTjQ_n7PFKTCCyZOCNcQwUVoRd8Yg', 
   demo: '1q7GSF986adnX47toF_UZUn8Sjroxfo-dfh2Zpo76kYk',
   marketplace: '1Q4bOSNOwc-sVR--TI0GE3xCqhQSNADEb3KHHKm0kcq0',
-  reminders: '1Dal_T4o3fqZ8onWiyNyftNsIFK_S64-HAKwdH2Px2yg' // Reminders
+  reminders: '1Dal_T4o3fqZ8onWiyNyftNsIFK_S64-HAKwdH2Px2yg',
+  rewardsTracker: '1t8G0oh9yTqReBEY_AGKGjraUGwgWumIA1SeU1E61HNE' // NEW: Your Rewards Sheet
 };
 
 export const handler = async (event: any) => {
@@ -25,7 +26,7 @@ export const handler = async (event: any) => {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
         private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
       },
-scopes: [
+      scopes: [
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive' 
       ],
@@ -37,15 +38,14 @@ scopes: [
     const body = JSON.parse(event.body || '{}');
     const { action, email, mobile, data } = body;
 
-    // --- UPLOAD LOGO TO DRIVE & UPDATE SHEET (NEW) ---
+    // --- UPLOAD LOGO ---
     if (action === 'uploadLogo' && mobile && data) {
       try {
-        // 1. Convert base64 back to file and upload to Google Drive folder
         const buffer = Buffer.from(data.base64, 'base64');
         const driveRes = await drive.files.create({
           requestBody: {
             name: data.fileName,
-            parents: ['1xkFw128Xbh0y8-Z4OCkkR4yrvTtC9IKC'] // Your exact logo folder ID
+            parents: ['1xkFw128Xbh0y8-Z4OCkkR4yrvTtC9IKC']
           },
           media: {
             mimeType: data.mimeType,
@@ -56,7 +56,6 @@ scopes: [
         
         const newFileId = driveRes.data.id;
 
-        // 2. Update the correct column in the Google Sheet (H, I, or J)
         const detailsRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Details'!A:A" });
         const rows = detailsRes.data.values || [];
         const rowIndex = rows.findIndex((row: any[]) => row[0] === mobile);
@@ -90,12 +89,49 @@ scopes: [
         const response = await drive.files.list({
           q: `'${data.folderId}' in parents and trashed=false`,
           fields: 'files(id, name, mimeType, webContentLink, thumbnailLink)',
-          orderBy: 'createdTime desc' // Shows newest images first
+          orderBy: 'createdTime desc'
         });
         return { statusCode: 200, headers, body: JSON.stringify({ data: response.data.files || [] }) };
       } catch (err: any) {
         console.error("Drive Error:", err.message);
         return { statusCode: 200, headers, body: JSON.stringify({ data: [] }) };
+      }
+    }
+
+    // --- NEW: REWARDS TRACKER FETCH ---
+    if (action === 'getRewardsTracker' && mobile) {
+      try {
+        const response = await sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEETS.rewardsTracker,
+          range: "'Rewards'!A:G" // Assuming columns: Mobile, B Google, K Google, B Insta, K Insta, B Tiktok, K Tiktok
+        });
+        const rows = response.data.values || [];
+        const userRow = rows.find((row: any[]) => row[0] === mobile);
+
+        // Default to 'no' if the user isn't in the sheet yet
+        let taskStatus = {
+          'g-review-brandify': 'no',
+          'g-review-khetta': 'no',
+          'ig-follow-brandify': 'no',
+          'ig-follow-khetta': 'no',
+          'tk-follow-brandify': 'no',
+          'tk-follow-khetta': 'no'
+        };
+
+        if (userRow) {
+          taskStatus = {
+            'g-review-brandify': userRow[1]?.toLowerCase() || 'no',
+            'g-review-khetta': userRow[2]?.toLowerCase() || 'no',
+            'ig-follow-brandify': userRow[3]?.toLowerCase() || 'no',
+            'ig-follow-khetta': userRow[4]?.toLowerCase() || 'no',
+            'tk-follow-brandify': userRow[5]?.toLowerCase() || 'no',
+            'tk-follow-khetta': userRow[6]?.toLowerCase() || 'no'
+          };
+        }
+        return { statusCode: 200, headers, body: JSON.stringify({ data: taskStatus }) };
+      } catch (err: any) {
+        console.error("Rewards Tracker Error:", err.message);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to fetch rewards' }) };
       }
     }
 
@@ -115,8 +151,7 @@ scopes: [
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Images'!A:D" })
       ]);
       return { 
-        statusCode: 200, 
-        headers, 
+        statusCode: 200, headers, 
         body: JSON.stringify({ data: { library: libraryRes.data.values || [], images: imagesRes.data.values || [] } }) 
       };
     }
@@ -128,16 +163,13 @@ scopes: [
       const rowIndex = rows.findIndex((row: any[]) => row[0] === mobile);
       
       if (rowIndex === -1) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Client not found' }) };
-      
       const sheetRow = rowIndex + 1; 
       
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEETS.main,
         range: `'Clients Details'!D${sheetRow}:G${sheetRow}`,
         valueInputOption: 'USER_ENTERED',
-        requestBody: {
-          values: [[data.website || "", data.socialMedia || "", data.supportPhone || "", data.supportEmail || ""]]
-        }
+        requestBody: { values: [[data.website || "", data.socialMedia || "", data.supportPhone || "", data.supportEmail || ""]] }
       });
       return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
     }
