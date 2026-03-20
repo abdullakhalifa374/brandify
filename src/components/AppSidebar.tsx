@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, User, MessageSquare, FolderOpen, LogOut, ShoppingCart, PlayCircle, BookOpen } from "lucide-react";
+import { Home, LayoutGrid, User, MessageSquare, FolderOpen, LogOut, ShoppingCart, PlayCircle, BookOpen, Gift } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
@@ -15,14 +15,15 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 
+// NEW: Added Rewards to the navItems array
 const navItems = [
   { title: "Home", url: "/app", icon: Home },
   { title: "My Templates", url: "/app/templates", icon: LayoutGrid },
+  { title: "Rewards", url: "/app/rewards", icon: Gift }, 
   { title: "Account", url: "/app/account", icon: User },
   { title: "Contact Us", url: "/app/contact", icon: MessageSquare },
 ];
 
-// NEW: Added external/resource links here
 const resourceItems = [
   { title: "Marketplace", url: "/marketplace", icon: ShoppingCart, external: false },
   { title: "Demo", url: "/demo", icon: PlayCircle, external: false },
@@ -82,7 +83,7 @@ const AppSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* NEW: RESOURCES LINKS */}
+        {/* RESOURCES LINKS */}
         <SidebarGroup className="mt-4">
           <div className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             {!collapsed && "Resources"}
