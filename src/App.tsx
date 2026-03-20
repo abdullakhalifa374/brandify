@@ -14,6 +14,8 @@ import AppHome from "./pages/AppHome";
 import AppTemplates from "./pages/AppTemplates";
 import AppAccount from "./pages/AppAccount";
 import AppContact from "./pages/AppContact";
+// NEW: Import the Rewards page
+import Rewards from "./pages/Rewards"; 
 import NotFound from "./pages/NotFound";
 
 import PublicLayout from "./components/PublicLayout";
@@ -45,6 +47,8 @@ const App = () => (
               <Route path="templates" element={<AppTemplates />} />
               <Route path="account" element={<AppAccount />} />
               <Route path="contact" element={<AppContact />} />
+              {/* NEW: Rewards Route */}
+              <Route path="rewards" element={<Rewards />} /> 
             </Route>
 
             <Route path="*" element={<NotFound />} />
