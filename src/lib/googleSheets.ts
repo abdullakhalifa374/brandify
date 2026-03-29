@@ -59,3 +59,12 @@ export const getDriveAssets = async (folderId: string) => {
 export const getRewardsTracker = async (mobile: string) => {
   return await fetchFromSheets({ action: 'getRewardsTracker', mobile });
 };
+
+// --- REWARDS API HELPER ---
+export const getRewardsTracker = async (mobile: string) => {
+  return await fetchFromSheets({ action: 'getRewardsTracker', mobile });
+};
+
+export const submitRewardVerification = async (mobile: string, taskId: string, base64: string, mimeType: string, fileName: string) => {
+  return await fetchFromSheets({ action: 'submitRewardVerification', mobile, data: { taskId, base64, mimeType, fileName } });
+};
