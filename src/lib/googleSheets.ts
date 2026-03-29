@@ -50,17 +50,12 @@ export const claimFreeTemplate = async (mobile: string, templateId: string) => {
   return await fetchFromSheets({ action: 'claimFreeTemplate', mobile, data: { templateId } });
 };
 
-// --- NEW: DRIVE API HELPER ---
+// --- DRIVE API HELPER ---
 export const getDriveAssets = async (folderId: string) => {
   return await fetchFromSheets({ action: 'getDriveAssets', data: { folderId } });
 };
 
-// --- REWARDS API HELPER ---
-export const getRewardsTracker = async (mobile: string) => {
-  return await fetchFromSheets({ action: 'getRewardsTracker', mobile });
-};
-
-// --- REWARDS API HELPER ---
+// --- REWARDS API HELPERS ---
 export const getRewardsTracker = async (mobile: string) => {
   return await fetchFromSheets({ action: 'getRewardsTracker', mobile });
 };
