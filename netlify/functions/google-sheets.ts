@@ -6,7 +6,17 @@ const SPREADSHEETS = {
   demo: '1q7GSF986adnX47toF_UZUn8Sjroxfo-dfh2Zpo76kYk',
   marketplace: '1Q4bOSNOwc-sVR--TI0GE3xCqhQSNADEb3KHHKm0kcq0',
   reminders: '1Dal_T4o3fqZ8onWiyNyftNsIFK_S64-HAKwdH2Px2yg',
-  rewardsTracker: '1t8G0oh9yTqReBEY_AGKGjraUGwgWumIA1SeU1E61HNE' // NEW: Your Rewards Sheet
+  rewardsTracker: '1t8G0oh9yTqReBEY_AGKGjraUGwgWumIA1SeU1E61HNE' 
+};
+
+// Map Task IDs to their specific column in the Rewards Sheet
+const TASK_COLS: Record<string, string> = {
+  'g-review-brandify': 'B',
+  'g-review-khetta': 'C',
+  'ig-follow-brandify': 'D',
+  'ig-follow-khetta': 'E',
+  'tk-follow-brandify': 'F',
+  'tk-follow-khetta': 'G'
 };
 
 export const handler = async (event: any) => {
@@ -38,24 +48,74 @@ export const handler = async (event: any) => {
     const body = JSON.parse(event.body || '{}');
     const { action, email, mobile, data } = body;
 
+    // --- NEW: SUBMIT TO WEBHOOK & SET "VERIFYING" ---
+    if (action === 'submitRewardVerification' && mobile && data) {
+      try {
+        const { taskId, base64, mimeType, fileName } = data;
+        const col = TASK_COLS[taskId];
+
+        if (!col) throw new Error("Invalid task ID");
+
+        // 1. Fire and forget to your Activepieces Webhook
+        await fetch('https://cloud.activepieces.com/api/v1/webhooks/EwUDW9h0Aj3fW5sopHcg9', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            mobile, 
+            taskId, 
+            fileName, 
+            mimeType, 
+            image: base64 
+          })
+        }).catch(err => console.error("Webhook delivery failed:", err));
+
+        // 2. Update Google Sheet to "verifying"
+        const rewardsRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.rewardsTracker, range: "'Rewards'!A:G" });
+        const rows = rewardsRes.data.values || [];
+        let rowIndex = rows.findIndex((row: any[]) => row[0] === mobile);
+
+        if (rowIndex === -1) {
+          // Create new user row with 'verifying' in the correct slot
+          const newRow = [mobile, 'no', 'no', 'no', 'no', 'no', 'no'];
+          const colIndex = col.charCodeAt(0) - 65; // Convert 'B' to index 1, 'C' to 2, etc.
+          newRow[colIndex] = 'verifying';
+
+          await sheets.spreadsheets.values.append({
+            spreadsheetId: SPREADSHEETS.rewardsTracker,
+            range: "'Rewards'!A:G",
+            valueInputOption: 'USER_ENTERED',
+            insertDataOption: 'INSERT_ROWS',
+            requestBody: { values: [newRow] }
+          });
+        } else {
+          // Update existing user
+          const sheetRow = rowIndex + 1;
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEETS.rewardsTracker,
+            range: `'Rewards'!${col}${sheetRow}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [['verifying']] }
+          });
+        }
+
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, status: 'verifying' }) };
+      } catch (err: any) {
+        console.error("Verification Submission Error:", err.message);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to submit verification' }) };
+      }
+    }
+
     // --- UPLOAD LOGO ---
     if (action === 'uploadLogo' && mobile && data) {
       try {
         const buffer = Buffer.from(data.base64, 'base64');
         const driveRes = await drive.files.create({
-          requestBody: {
-            name: data.fileName,
-            parents: ['1xkFw128Xbh0y8-Z4OCkkR4yrvTtC9IKC']
-          },
-          media: {
-            mimeType: data.mimeType,
-            body: Readable.from(buffer)
-          },
+          requestBody: { name: data.fileName, parents: ['1xkFw128Xbh0y8-Z4OCkkR4yrvTtC9IKC'] },
+          media: { mimeType: data.mimeType, body: Readable.from(buffer) },
           fields: 'id'
         });
         
         const newFileId = driveRes.data.id;
-
         const detailsRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Details'!A:A" });
         const rows = detailsRes.data.values || [];
         const rowIndex = rows.findIndex((row: any[]) => row[0] === mobile);
@@ -69,16 +129,13 @@ export const handler = async (event: any) => {
 
           if (colLetter) {
             await sheets.spreadsheets.values.update({
-              spreadsheetId: SPREADSHEETS.main,
-              range: `'Clients Details'!${colLetter}${sheetRow}`,
-              valueInputOption: 'USER_ENTERED',
+              spreadsheetId: SPREADSHEETS.main, range: `'Clients Details'!${colLetter}${sheetRow}`, valueInputOption: 'USER_ENTERED',
               requestBody: { values: [[newFileId]] }
             });
           }
         }
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, fileId: newFileId }) };
       } catch (err: any) {
-        console.error("Logo Upload Error:", err.message);
         return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to upload logo' }) };
       }
     }
@@ -88,34 +145,26 @@ export const handler = async (event: any) => {
       try {
         const response = await drive.files.list({
           q: `'${data.folderId}' in parents and trashed=false`,
-          fields: 'files(id, name, mimeType, webContentLink, thumbnailLink)',
-          orderBy: 'createdTime desc'
+          fields: 'files(id, name, mimeType, webContentLink, thumbnailLink)', orderBy: 'createdTime desc'
         });
         return { statusCode: 200, headers, body: JSON.stringify({ data: response.data.files || [] }) };
       } catch (err: any) {
-        console.error("Drive Error:", err.message);
         return { statusCode: 200, headers, body: JSON.stringify({ data: [] }) };
       }
     }
 
-    // --- NEW: REWARDS TRACKER FETCH ---
+    // --- REWARDS TRACKER FETCH ---
     if (action === 'getRewardsTracker' && mobile) {
       try {
         const response = await sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEETS.rewardsTracker,
-          range: "'Rewards'!A:G" // Assuming columns: Mobile, B Google, K Google, B Insta, K Insta, B Tiktok, K Tiktok
+          spreadsheetId: SPREADSHEETS.rewardsTracker, range: "'Rewards'!A:G" 
         });
         const rows = response.data.values || [];
         const userRow = rows.find((row: any[]) => row[0] === mobile);
 
-        // Default to 'no' if the user isn't in the sheet yet
         let taskStatus = {
-          'g-review-brandify': 'no',
-          'g-review-khetta': 'no',
-          'ig-follow-brandify': 'no',
-          'ig-follow-khetta': 'no',
-          'tk-follow-brandify': 'no',
-          'tk-follow-khetta': 'no'
+          'g-review-brandify': 'no', 'g-review-khetta': 'no', 'ig-follow-brandify': 'no',
+          'ig-follow-khetta': 'no', 'tk-follow-brandify': 'no', 'tk-follow-khetta': 'no'
         };
 
         if (userRow) {
@@ -130,17 +179,13 @@ export const handler = async (event: any) => {
         }
         return { statusCode: 200, headers, body: JSON.stringify({ data: taskStatus }) };
       } catch (err: any) {
-        console.error("Rewards Tracker Error:", err.message);
         return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to fetch rewards' }) };
       }
     }
 
     // --- DEMO FETCH ---
     if (action === 'getDemoTemplates') {
-      const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEETS.demo,
-        range: "'Demo Templates'!A:G", 
-      });
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.demo, range: "'Demo Templates'!A:G" });
       return { statusCode: 200, headers, body: JSON.stringify({ data: response.data.values || [] }) };
     }
 
@@ -150,10 +195,7 @@ export const handler = async (event: any) => {
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Library'!A:T" }), 
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Images'!A:D" })
       ]);
-      return { 
-        statusCode: 200, headers, 
-        body: JSON.stringify({ data: { library: libraryRes.data.values || [], images: imagesRes.data.values || [] } }) 
-      };
+      return { statusCode: 200, headers, body: JSON.stringify({ data: { library: libraryRes.data.values || [], images: imagesRes.data.values || [] } }) };
     }
 
     // --- UPDATE PROFILE ---
@@ -161,14 +203,10 @@ export const handler = async (event: any) => {
       const detailsRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Details'!A:A" });
       const rows = detailsRes.data.values || [];
       const rowIndex = rows.findIndex((row: any[]) => row[0] === mobile);
-      
       if (rowIndex === -1) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Client not found' }) };
       const sheetRow = rowIndex + 1; 
-      
       await sheets.spreadsheets.values.update({
-        spreadsheetId: SPREADSHEETS.main,
-        range: `'Clients Details'!D${sheetRow}:G${sheetRow}`,
-        valueInputOption: 'USER_ENTERED',
+        spreadsheetId: SPREADSHEETS.main, range: `'Clients Details'!D${sheetRow}:G${sheetRow}`, valueInputOption: 'USER_ENTERED',
         requestBody: { values: [[data.website || "", data.socialMedia || "", data.supportPhone || "", data.supportEmail || ""]] }
       });
       return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
@@ -178,31 +216,24 @@ export const handler = async (event: any) => {
     if (action === 'claimFreeTemplate' && mobile && data) {
       const newId = `FRM_${Date.now()}`;
       await sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEETS.main,
-        range: "'Clients Forms'!A:C",
-        valueInputOption: 'USER_ENTERED',
-        insertDataOption: 'INSERT_ROWS',
+        spreadsheetId: SPREADSHEETS.main, range: "'Clients Forms'!A:C", valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
         requestBody: { values: [[newId, mobile, data.templateId]] } 
       });
-
       const detailsRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Details'!A:Q" });
       const rows = detailsRes.data.values || [];
       const rowIndex = rows.findIndex((row: any[]) => row[0] === mobile);
-      
       if (rowIndex !== -1) {
         const sheetRow = rowIndex + 1;
         const currentUsed = parseInt(rows[rowIndex][13] || "0", 10);
         await sheets.spreadsheets.values.update({
-          spreadsheetId: SPREADSHEETS.main,
-          range: `'Clients Details'!N${sheetRow}`, 
-          valueInputOption: 'USER_ENTERED',
+          spreadsheetId: SPREADSHEETS.main, range: `'Clients Details'!N${sheetRow}`, valueInputOption: 'USER_ENTERED',
           requestBody: { values: [[(currentUsed + 1).toString()]] }
         });
       }
       return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
     }
 
-    // --- THE GRAND APP FETCH ---
+    // --- GET APP DASHBOARD DATA ---
     if (action === 'getAppDashboardData' && email) {
       const [clientsRes, detailsRes, clientFormsRes, formsRes, remindersRes] = await Promise.all([
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: 'Clients!A:J' }),
@@ -211,7 +242,6 @@ export const handler = async (event: any) => {
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: 'Forms!A:H' }),
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.reminders, range: "'reminders'!A:F" })
       ]);
-
       const clients = clientsRes.data.values || [];
       const details = detailsRes.data.values || [];
       const clientForms = clientFormsRes.data.values || [];
@@ -250,14 +280,10 @@ export const handler = async (event: any) => {
         lastName: detailsRow[15] || "", maxCredits: detailsRow[16] || "0"
       };
 
-      return { 
-        statusCode: 200, headers, 
-        body: JSON.stringify({ data: { profile: clientProfile, templates: myTemplates, reminders: userReminders } }) 
-      };
+      return { statusCode: 200, headers, body: JSON.stringify({ data: { profile: clientProfile, templates: myTemplates, reminders: userReminders } }) };
     }
 
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid action provided' }) };
-
   } catch (error: any) {
     console.error("Google Sheets API Error:", error);
     return { statusCode: 500, headers, body: JSON.stringify({ error: error.message }) };
