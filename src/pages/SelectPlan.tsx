@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Check, Zap, Loader2 } from "lucide-react";
 
-// NEW: Import the Phone Input Library and its CSS
 import 'react-phone-number-input/style.css';
 import PhoneInput from 'react-phone-number-input';
 
@@ -28,7 +27,6 @@ const SelectPlan = () => {
   const [showFormModal, setShowFormModal] = useState(false);
   const [selectedPlanDetails, setSelectedPlanDetails] = useState<any>(null);
   
-  // Note: phone is initialized as empty string for the PhoneInput component
   const [formData, setFormData] = useState({ firstName: "", lastName: "", phone: "", company: "" });
 
   if (!signupEmail) return <Navigate to="/signup" />;
@@ -47,7 +45,24 @@ const SelectPlan = () => {
     setLoading(true);
 
     try {
-      await createClientAccount(signupEmail, formData.phone, {
+      // --- PHONE NUMBER FORMATTING LOGIC ---
+      let finalPhone = formData.phone;
+      
+      // 1. Remove any accidental spaces
+      finalPhone = finalPhone.replace(/\s+/g, "");
+      
+      // 2. Apply Custom Rules
+      if (finalPhone.startsWith("+973")) {
+        // If Bahrain, completely remove the +973 prefix
+        finalPhone = finalPhone.replace("+973", "");
+      } else if (finalPhone.startsWith("+")) {
+        // If any other country, just remove the + sign
+        finalPhone = finalPhone.substring(1);
+      }
+      // -------------------------------------
+
+      // Use finalPhone instead of formData.phone
+      await createClientAccount(signupEmail, finalPhone, {
         firstName: formData.firstName,
         lastName: formData.lastName,
         company: formData.company,
@@ -60,7 +75,7 @@ const SelectPlan = () => {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: signupEmail,
-        mobile: formData.phone,
+        mobile: finalPhone, // Update here too!
         company: formData.company,
         plan: selectedPlanDetails.planName,
         source: "Brandify App Signup",
@@ -201,15 +216,15 @@ const SelectPlan = () => {
               </div>
             </div>
 
-            {/* NEW: Country Code Phone Selector */}
             <div className="space-y-2">
               <Label>Mobile Number</Label>
+              {/* NEW: CSS overrides via arbitrary Tailwind brackets to force flags to show */}
               <PhoneInput
                 international
                 defaultCountry="BH"
                 value={formData.phone}
                 onChange={(value) => setFormData({...formData, phone: value || ""})}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 [&_input]:border-none [&_input]:bg-transparent [&_input]:outline-none [&_input]:w-full"
+                className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 [&_.PhoneInputCountryIcon]:w-6 [&_.PhoneInputCountryIcon]:h-4 [&_.PhoneInputCountryIcon]:shadow-sm [&_.PhoneInputCountrySelect]:outline-none [&_input]:w-full [&_input]:bg-transparent [&_input]:border-none [&_input]:outline-none"
               />
             </div>
 
