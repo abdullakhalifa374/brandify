@@ -64,11 +64,7 @@ interface AuthUser {
 }
 
 interface SignupData {
-  firstName: string;
-  lastName: string;
   email: string;
-  phone: string;
-  company: string;
   password: string;
 }
 
@@ -143,13 +139,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await signInWithEmailAndPassword(auth, email, password);
   };
 
-  const signup = async (data: SignupData) => {
-    const credential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-    await updateProfile(credential.user, {
-      displayName: `${data.firstName} ${data.lastName}`,
-    });
+const signup = async (data: SignupData) => {
+    await createUserWithEmailAndPassword(auth, data.email, data.password);
   };
-
+  
   const logout = () => {
     signOut(auth);
   };
