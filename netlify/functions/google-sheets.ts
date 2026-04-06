@@ -48,6 +48,67 @@ export const handler = async (event: any) => {
     const body = JSON.parse(event.body || '{}');
     const { action, email, mobile, data } = body;
 
+// --- SYNCHRONOUS ACCOUNT CREATION ---
+    if (action === 'createClientAccount' && email && mobile && data) {
+      try {
+        const frontlyId = `USR_${Date.now()}`; 
+        
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 14); // 14 Day trial limit
+        const formattedEndDate = endDate.toISOString().split('T')[0]; 
+
+        // 1. Create Main Client Row
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEETS.main,
+          range: 'Clients!A:J',
+          valueInputOption: 'USER_ENTERED',
+          insertDataOption: 'INSERT_ROWS',
+          requestBody: { 
+            values: [[
+              frontlyId, mobile, data.company, email, 
+              data.credits, '0', data.credits, // Dynamic Credits
+              formattedEndDate, 'Active', ''
+            ]] 
+          }
+        });
+
+        // 2. Create Client Details Row
+        const detailsRow = Array(17).fill('');
+        detailsRow[0] = mobile;
+        detailsRow[10] = data.planName;    // K: Plan
+        detailsRow[11] = '0';              // L: Price (0 for trial)
+        detailsRow[12] = data.freeTemplates; // M: Free Templates
+        detailsRow[13] = '0';              // N: Templates Used
+        detailsRow[14] = data.firstName;   // O: First Name
+        detailsRow[15] = data.lastName;    // P: Last Name
+        detailsRow[16] = data.credits;     // Q: Max Credits
+
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEETS.main,
+          range: "'Clients Details'!A:Q",
+          valueInputOption: 'USER_ENTERED',
+          insertDataOption: 'INSERT_ROWS',
+          requestBody: { values: [detailsRow] }
+        });
+
+        // 3. Initialize Rewards Tracker Row
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEETS.rewardsTracker,
+          range: "'Rewards'!A:G",
+          valueInputOption: 'USER_ENTERED',
+          insertDataOption: 'INSERT_ROWS',
+          requestBody: { values: [[mobile, 'no', 'no', 'no', 'no', 'no', 'no']] }
+        });
+
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
+      } catch (err: any) {
+        console.error("Account Creation Error:", err.message);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to initialize account data' }) };
+      }
+    }
+
+
+    
     // --- NEW: SUBMIT TO WEBHOOK & SET "VERIFYING" ---
     if (action === 'submitRewardVerification' && mobile && data) {
       try {
