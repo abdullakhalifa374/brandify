@@ -63,7 +63,7 @@ export const handler = async (event: any) => {
         const masterFolderId = '1G_-MQrmoSWXMskatExfai5VOlmbf8efv'; 
         const folder = await drive.files.create({
           requestBody: {
-            name: `${data.company} - ${data.firstName} ${data.lastName}`,
+            name: `${mobile} files`, // <-- NEW NAME FORMAT
             mimeType: 'application/vnd.google-apps.folder',
             parents: [masterFolderId]
           },
