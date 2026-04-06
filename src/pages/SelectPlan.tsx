@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
-import { useAuth } from "@/lib/auth-context"; // NEW: Import useAuth
+import { useAuth } from "@/lib/auth-context";
 import { createClientAccount } from "@/lib/googleSheets";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Check, Zap, Loader2 } from "lucide-react";
@@ -11,46 +14,48 @@ import { Check, Zap, Loader2 } from "lucide-react";
 const SelectPlan = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth(); // NEW: Grab the Firebase user
+  const { user } = useAuth();
   
+  const signupEmail = location.state?.signupEmail || user?.email;
+
   const [isYearly, setIsYearly] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Modal State
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [selectedPlanDetails, setSelectedPlanDetails] = useState<any>(null);
+  const [formData, setFormData] = useState({ firstName: "", lastName: "", phone: "", company: "" });
 
-  // THE FALLBACK: If they lost the signup state, we rebuild it using their Firebase info
-  const signupData = location.state?.signupData || (user ? {
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    company: "Pending Update", // Fallback
-    phone: "Pending Update"    // Fallback
-  } : null);
+  if (!signupEmail) return <Navigate to="/signup" />;
 
-  // If there is no state AND they aren't logged into Firebase, kick them to signup
-  if (!signupData) {
-    return <Navigate to="/signup" />;
-  }
+  // Triggered when clicking a plan button
+  const handleSelectPlan = (planName: string, credits: string, freeTemplates: string) => {
+    setSelectedPlanDetails({ planName, credits, freeTemplates });
+    setShowFormModal(true);
+  };
 
-  const handleStartTrial = async () => {
+  // Triggered when submitting the final form inside the modal
+  const handleFinalizeAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
+
     try {
-      // 1. Create the Google Sheets Database Rows
-      await createClientAccount(signupData.email, signupData.phone, {
-        firstName: signupData.firstName,
-        lastName: signupData.lastName,
-        company: signupData.company,
-        planName: "Free Trial",
-        credits: "20",
-        freeTemplates: "1"
+      await createClientAccount(signupEmail, formData.phone, {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        company: formData.company,
+        planName: selectedPlanDetails.planName,
+        credits: selectedPlanDetails.credits,
+        freeTemplates: selectedPlanDetails.freeTemplates
       });
 
-      // 2. Fire Activepieces Webhook
       const webhookData = {
-        firstName: signupData.firstName,
-        lastName: signupData.lastName,
-        email: signupData.email,
-        mobile: signupData.phone,
-        company: signupData.company,
-        plan: "Free Trial",
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: signupEmail,
+        mobile: formData.phone,
+        company: formData.company,
+        plan: selectedPlanDetails.planName,
         source: "Brandify App Signup",
         timestamp: new Date().toISOString()
       };
@@ -61,12 +66,11 @@ const SelectPlan = () => {
         body: JSON.stringify(webhookData),
       }).catch(err => console.error("Webhook trigger failed", err));
 
-      // 3. Redirect to Marketplace to pick their free template!
-      // We force a hard reload here to guarantee AuthContext fetches the newly created Sheets data!
+      // Hard reload pushes them into the authenticated app state perfectly
       window.location.href = "/marketplace";
       
     } catch (error) {
-      console.error("Failed to start trial", error);
+      console.error("Failed to setup account", error);
       alert("Something went wrong. Please try again.");
       setLoading(false);
     }
@@ -92,7 +96,6 @@ const SelectPlan = () => {
       </div>
 
       <div className="grid md:grid-cols-4 gap-6 max-w-7xl w-full">
-        
         {/* FREE TRIAL */}
         <Card className="flex flex-col relative border-border">
           <CardHeader>
@@ -109,9 +112,7 @@ const SelectPlan = () => {
             </ul>
           </CardContent>
           <CardFooter>
-            <Button className="w-full" onClick={handleStartTrial} disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Start Free Trial"}
-            </Button>
+            <Button className="w-full" onClick={() => handleSelectPlan("Free Trial", "20", "1")}>Start Free Trial</Button>
           </CardFooter>
         </Card>
 
@@ -126,14 +127,12 @@ const SelectPlan = () => {
           </CardHeader>
           <CardContent className="flex-1">
             <ul className="space-y-3 text-sm">
-              <li className="flex gap-3"><Check className="h-4 w-4 text-primary shrink-0" /> 60 Credits (50 + 10 Free)</li>
+              <li className="flex gap-3"><Check className="h-4 w-4 text-primary shrink-0" /> 60 Credits</li>
               <li className="flex gap-3"><Check className="h-4 w-4 text-primary shrink-0" /> Up to 5 templates</li>
               <li className="flex gap-3"><Check className="h-4 w-4 text-primary shrink-0" /> 1 free marketplace template</li>
             </ul>
           </CardContent>
-          <CardFooter>
-            <Button variant="outline" className="w-full" onClick={handleContactUs}>Contact Us</Button>
-          </CardFooter>
+          <CardFooter><Button variant="outline" className="w-full" onClick={handleContactUs}>Contact Us</Button></CardFooter>
         </Card>
 
         {/* SILVER */}
@@ -150,14 +149,12 @@ const SelectPlan = () => {
           </CardHeader>
           <CardContent className="flex-1">
             <ul className="space-y-3 text-sm">
-              <li className="flex gap-3"><Check className="h-4 w-4 text-primary shrink-0" /> 150 Credits (125 + 25 Free)</li>
+              <li className="flex gap-3"><Check className="h-4 w-4 text-primary shrink-0" /> 150 Credits</li>
               <li className="flex gap-3"><Check className="h-4 w-4 text-primary shrink-0" /> Up to 10 templates</li>
               <li className="flex gap-3"><Check className="h-4 w-4 text-primary shrink-0" /> 2 free marketplace templates</li>
             </ul>
           </CardContent>
-          <CardFooter>
-            <Button className="w-full" onClick={handleContactUs}>Contact Us</Button>
-          </CardFooter>
+          <CardFooter><Button className="w-full" onClick={handleContactUs}>Contact Us</Button></CardFooter>
         </Card>
 
         {/* GOLD */}
@@ -171,17 +168,47 @@ const SelectPlan = () => {
           </CardHeader>
           <CardContent className="flex-1">
             <ul className="space-y-3 text-sm">
-              <li className="flex gap-3"><Check className="h-4 w-4 text-primary shrink-0" /> 360 Credits (300 + 60 Free)</li>
+              <li className="flex gap-3"><Check className="h-4 w-4 text-primary shrink-0" /> 360 Credits</li>
               <li className="flex gap-3"><Check className="h-4 w-4 text-primary shrink-0" /> Up to 20 templates</li>
               <li className="flex gap-3"><Check className="h-4 w-4 text-primary shrink-0" /> 3 free marketplace templates</li>
             </ul>
           </CardContent>
-          <CardFooter>
-            <Button variant="outline" className="w-full" onClick={handleContactUs}>Contact Us</Button>
-          </CardFooter>
+          <CardFooter><Button variant="outline" className="w-full" onClick={handleContactUs}>Contact Us</Button></CardFooter>
         </Card>
-
       </div>
+
+      {/* FINALIZATION MODAL */}
+      <Dialog open={showFormModal} onOpenChange={(open) => !loading && setShowFormModal(open)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Almost there!</DialogTitle>
+            <DialogDescription>Let's finalize your account details to set up your {selectedPlanDetails?.planName} workspace.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleFinalizeAccount} className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>First Name</Label>
+                <Input required value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Last Name</Label>
+                <Input required value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Mobile Number</Label>
+              <Input type="tel" required placeholder="+973 XXXX XXXX" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Company Name</Label>
+              <Input required value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Complete Setup"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
