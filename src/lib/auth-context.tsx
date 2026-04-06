@@ -1,71 +1,34 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import {
   onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signOut,
-  sendPasswordResetEmail,
-  updateProfile,
+  signInWithPopup,
+  GoogleAuthProvider
 } from "firebase/auth";
 import { auth } from "./firebase";
 import { getAppDashboardData } from "./googleSheets"; 
 
 export interface ClientProfile {
-  frontly_id: string;
-  mobile: string;
-  company: string;
-  email: string;
-  credit: string | number;
-  used: string | number;
-  remaining: string | number;
-  endDate: string;
-  status: string;
-  googleDrive: string;
-  website: string;
-  socialMedia: string;
-  supportPhone: string;
-  supportEmail: string;
-  darkLogo: string;
-  lightLogo: string;
-  coloredLogo: string;
-  plan: string;
-  planPrice: string;
-  freeTemplates: string | number;
-  templatesUsed: string | number;
-  firstName: string;
-  lastName: string;
-  maxCredits: string | number;
+  frontly_id: string; mobile: string; company: string; email: string;
+  credit: string | number; used: string | number; remaining: string | number;
+  endDate: string; status: string; googleDrive: string; website: string;
+  socialMedia: string; supportPhone: string; supportEmail: string;
+  darkLogo: string; lightLogo: string; coloredLogo: string; plan: string;
+  planPrice: string; freeTemplates: string | number; templatesUsed: string | number;
+  firstName: string; lastName: string; maxCredits: string | number;
 }
 
 export interface ClientTemplate {
-  frontly_id: string;
-  title: string;
-  id: string;
-  category: string;
-  type: string;
-  credit: number;
-  formUrl: string;
-  preview: string;
+  frontly_id: string; title: string; id: string; category: string;
+  type: string; credit: number; formUrl: string; preview: string;
 }
 
 export interface ClientReminder {
-  mobile: string;
-  email: string;
-  type: string;
-  date: string;
-  status: string;
-  plan: string;
+  mobile: string; email: string; type: string; date: string; status: string; plan: string;
 }
 
 interface AuthUser {
-  email: string;
-  firstName: string;
-  lastName: string;
-}
-
-interface SignupData {
-  email: string;
-  password: string;
+  email: string; firstName: string; lastName: string;
 }
 
 interface AuthContextType {
@@ -74,10 +37,8 @@ interface AuthContextType {
   templates: ClientTemplate[]; 
   reminders: ClientReminder[]; 
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (data: SignupData) => Promise<void>;
+  loginWithGoogle: () => Promise<any>;
   logout: () => void;
-  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -98,12 +59,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser && firebaseUser.email) {
-        // 1. Set basic Firebase user instantly
         const displayName = firebaseUser.displayName || "";
         const [firstName = "", lastName = ""] = displayName.split(" ");
         setUser({ email: firebaseUser.email, firstName, lastName });
 
-        // 2. Fetch real data from Google Sheets
         try {
           const result = await getAppDashboardData(firebaseUser.email);
           if (result && result.profile) {
@@ -111,48 +70,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setTemplates(result.templates || []);
             setReminders(result.reminders || []);
           } else {
-            setClient(null);
-            setTemplates([]);
-            setReminders([]);
+            setClient(null); setTemplates([]); setReminders([]);
           }
         } catch (error) {
           console.error("Failed to load client data from Sheets:", error);
-          setClient(null);
-          setTemplates([]);
-          setReminders([]);
+          setClient(null); setTemplates([]); setReminders([]);
         }
 
       } else {
-        // User logged out
-        setUser(null);
-        setClient(null);
-        setTemplates([]);
-        setReminders([]);
+        setUser(null); setClient(null); setTemplates([]); setReminders([]);
       }
-      setIsLoading(false); // Stop loading ONLY after data is fetched
+      setIsLoading(false); 
     });
 
     return () => unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
-  };
-
-const signup = async (data: SignupData) => {
-    await createUserWithEmailAndPassword(auth, data.email, data.password);
+  // NEW: Google Sign In Function
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    return await signInWithPopup(auth, provider);
   };
   
   const logout = () => {
     signOut(auth);
   };
 
-  const resetPassword = async (email: string) => {
-    await sendPasswordResetEmail(auth, email);
-  };
-
   return (
-    <AuthContext.Provider value={{ user, client, templates, reminders, isLoading, login, signup, logout, resetPassword }}>
+    <AuthContext.Provider value={{ user, client, templates, reminders, isLoading, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );
