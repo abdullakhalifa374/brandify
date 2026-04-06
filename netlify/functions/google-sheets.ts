@@ -49,21 +49,28 @@ export const handler = async (event: any) => {
     const { action, email, mobile, data } = body;
 
     // --- SYNCHRONOUS ACCOUNT & DRIVE CREATION ---
-   if (action === 'createClientAccount' && email && mobile && data) {
+// --- SYNCHRONOUS ACCOUNT & DRIVE CREATION ---
+    if (action === 'createClientAccount' && email && mobile && data) {
       try {
         console.log(`Starting account creation for mobile: ${mobile}, email: ${email}`);
         const frontlyId = `USR_${Date.now()}`; 
         
+        // Calculate 14-Day Expiry Date
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + 14); 
         const formattedEndDate = endDate.toISOString().split('T')[0]; 
+
+        // Calculate 12-Day Free Alert Date (2 days before expiry)
+        const freeAlertDate = new Date();
+        freeAlertDate.setDate(freeAlertDate.getDate() + 12);
+        const formattedFreeAlertDate = freeAlertDate.toISOString().split('T')[0];
 
         // 1. CREATE GOOGLE DRIVE FOLDER
         console.log("Step 1: Creating Google Drive Folder...");
         const masterFolderId = '1G_-MQrmoSWXMskatExfai5VOlmbf8efv'; 
         const folder = await drive.files.create({
           requestBody: {
-            name: `${mobile} files`, // <-- NEW NAME FORMAT
+            name: `${mobile} files`, // <--- Uses formatted phone number!
             mimeType: 'application/vnd.google-apps.folder',
             parents: [masterFolderId]
           },
@@ -74,16 +81,20 @@ export const handler = async (event: any) => {
 
         // 2. SHARE FOLDER WITH USER
         console.log("Step 2: Sharing folder with user email...");
-        await drive.permissions.create({
-          fileId: newFolderId!,
-          sendNotificationEmail: false, // <--- THE MAGIC FIX
-          requestBody: {
-            role: 'writer',
-            type: 'user',
-            emailAddress: email
-          }
-        });
-        console.log("Folder shared successfully.");
+        try {
+          await drive.permissions.create({
+            fileId: newFolderId!,
+            sendNotificationEmail: false, 
+            requestBody: {
+              role: 'writer',
+              type: 'user',
+              emailAddress: email
+            }
+          });
+          console.log("Folder shared successfully.");
+        } catch (shareError: any) {
+          console.warn(`Could not share folder with ${email} (Non-Google account). Moving on...`);
+        }
 
         // 3. Create Main Client Row
         console.log("Step 3: Writing to Main Clients Sheet...");
@@ -131,10 +142,26 @@ export const handler = async (event: any) => {
           requestBody: { values: [[mobile, 'no', 'no', 'no', 'no', 'no', 'no']] }
         });
 
+        // 6. ADD REMINDERS FOR FREE TRIAL
+        console.log("Step 6: Writing to Reminders Sheet...");
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEETS.reminders,
+          range: "'reminders'!A:F",
+          valueInputOption: 'USER_ENTERED',
+          insertDataOption: 'INSERT_ROWS',
+          requestBody: { 
+            values: [
+              // [Mobile, Email, Type, Date, Status, Plan]
+              [mobile, email, 'free-alert', formattedFreeAlertDate, 'Pending', data.planName],
+              [mobile, email, 'expired', formattedEndDate, 'Pending', data.planName]
+            ] 
+          }
+        });
+
         console.log("Account creation fully completed.");
         return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
       } catch (err: any) {
-        console.error("Account Creation Error Details:", err); // <--- Will print the EXACT Google error
+        console.error("Account Creation Error Details:", err);
         return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to initialize account data' }) };
       }
     }
