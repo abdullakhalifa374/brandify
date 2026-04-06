@@ -11,6 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Check, Zap, Loader2 } from "lucide-react";
 
+// NEW: Import the Phone Input Library and its CSS
+import 'react-phone-number-input/style.css';
+import PhoneInput from 'react-phone-number-input';
+
 const SelectPlan = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -21,22 +25,25 @@ const SelectPlan = () => {
   const [isYearly, setIsYearly] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // Modal State
   const [showFormModal, setShowFormModal] = useState(false);
   const [selectedPlanDetails, setSelectedPlanDetails] = useState<any>(null);
+  
+  // Note: phone is initialized as empty string for the PhoneInput component
   const [formData, setFormData] = useState({ firstName: "", lastName: "", phone: "", company: "" });
 
   if (!signupEmail) return <Navigate to="/signup" />;
 
-  // Triggered when clicking a plan button
   const handleSelectPlan = (planName: string, credits: string, freeTemplates: string) => {
     setSelectedPlanDetails({ planName, credits, freeTemplates });
     setShowFormModal(true);
   };
 
-  // Triggered when submitting the final form inside the modal
   const handleFinalizeAccount = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.phone) {
+        alert("Please enter a valid phone number.");
+        return;
+    }
     setLoading(true);
 
     try {
@@ -66,7 +73,6 @@ const SelectPlan = () => {
         body: JSON.stringify(webhookData),
       }).catch(err => console.error("Webhook trigger failed", err));
 
-      // Hard reload pushes them into the authenticated app state perfectly
       window.location.href = "/marketplace";
       
     } catch (error) {
@@ -177,7 +183,6 @@ const SelectPlan = () => {
         </Card>
       </div>
 
-      {/* FINALIZATION MODAL */}
       <Dialog open={showFormModal} onOpenChange={(open) => !loading && setShowFormModal(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -195,15 +200,24 @@ const SelectPlan = () => {
                 <Input required value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
               </div>
             </div>
+
+            {/* NEW: Country Code Phone Selector */}
             <div className="space-y-2">
               <Label>Mobile Number</Label>
-              <Input type="tel" required placeholder="+973 XXXX XXXX" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+              <PhoneInput
+                international
+                defaultCountry="BH"
+                value={formData.phone}
+                onChange={(value) => setFormData({...formData, phone: value || ""})}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 [&_input]:border-none [&_input]:bg-transparent [&_input]:outline-none [&_input]:w-full"
+              />
             </div>
+
             <div className="space-y-2">
               <Label>Company Name</Label>
               <Input required value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || !formData.phone}>
               {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Complete Setup"}
             </Button>
           </form>
