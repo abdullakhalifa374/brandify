@@ -8,13 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { AlertCircle } from "lucide-react";
 
 const Signup = () => {
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", company: "", password: "" });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
   const { signup } = useAuth();
   const navigate = useNavigate();
-
-  const update = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,18 +22,11 @@ const Signup = () => {
     setErrorMessage(null);
 
     try {
-      // 1. Create the user in Firebase Auth
-      await signup({
-        firstName: form.firstName,
-        lastName: form.lastName,
-        email: form.email,
-        phone: form.phone,
-        company: form.company,
-        password: form.password
-      });
+      // 1. Create the user in Firebase Auth (Email/Pass only)
+      await signup({ email, password });
 
-      // 2. Pass the data to the Select Plan page!
-      navigate("/select-plan", { state: { signupData: form } });
+      // 2. Pass ONLY the email to the Select Plan page
+      navigate("/select-plan", { state: { signupEmail: email } });
       
     } catch (error: any) {
       console.error("Signup failed:", error);
@@ -45,10 +38,10 @@ const Signup = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Start your free trial</CardTitle>
-          <CardDescription>No credit card required</CardDescription>
+          <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
+          <CardDescription>Start your 14-day free trial</CardDescription>
         </CardHeader>
         <CardContent>
           {errorMessage && (
@@ -58,34 +51,16 @@ const Signup = () => {
             </div>
           )}
           <form onSubmit={handleSignup} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input id="firstName" required value={form.firstName} onChange={e => update("firstName", e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input id="lastName" required value={form.lastName} onChange={e => update("lastName", e.target.value)} />
-              </div>
-            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" required value={form.email} onChange={e => update("email", e.target.value)} placeholder="you@company.com" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" type="tel" required value={form.phone} onChange={e => update("phone", e.target.value)} placeholder="+973 XXXX XXXX" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="company">Company Name</Label>
-              <Input id="company" required value={form.company} onChange={e => update("company", e.target.value)} />
+              <Input id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required value={form.password} onChange={e => update("password", e.target.value)} placeholder="••••••••" />
+              <Input id="password" type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Continue to Plans"}
+              {loading ? "Creating..." : "Continue to Plans"}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
