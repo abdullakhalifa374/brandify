@@ -63,3 +63,9 @@ export const getRewardsTracker = async (mobile: string) => {
 export const submitRewardVerification = async (mobile: string, taskId: string, base64: string, mimeType: string, fileName: string) => {
   return await fetchFromSheets({ action: 'submitRewardVerification', mobile, data: { taskId, base64, mimeType, fileName } });
 };
+
+
+// Replace your current createClientAccount with this:
+export const createClientAccount = async (email: string, mobile: string, data: { firstName: string, lastName: string, company: string, planName: string, credits: string, freeTemplates: string }) => {
+  return await fetchFromSheets({ action: 'createClientAccount', email, mobile, data });
+};
