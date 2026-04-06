@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
+import { useAuth } from "@/lib/auth-context"; // NEW: Import useAuth
 import { createClientAccount } from "@/lib/googleSheets";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,12 +11,21 @@ import { Check, Zap, Loader2 } from "lucide-react";
 const SelectPlan = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const signupData = location.state?.signupData;
+  const { user } = useAuth(); // NEW: Grab the Firebase user
   
   const [isYearly, setIsYearly] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Security: If someone tries to access this page directly without signing up, send them back
+  // THE FALLBACK: If they lost the signup state, we rebuild it using their Firebase info
+  const signupData = location.state?.signupData || (user ? {
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    company: "Pending Update", // Fallback
+    phone: "Pending Update"    // Fallback
+  } : null);
+
+  // If there is no state AND they aren't logged into Firebase, kick them to signup
   if (!signupData) {
     return <Navigate to="/signup" />;
   }
@@ -52,7 +62,8 @@ const SelectPlan = () => {
       }).catch(err => console.error("Webhook trigger failed", err));
 
       // 3. Redirect to Marketplace to pick their free template!
-      navigate("/marketplace");
+      // We force a hard reload here to guarantee AuthContext fetches the newly created Sheets data!
+      window.location.href = "/marketplace";
       
     } catch (error) {
       console.error("Failed to start trial", error);
@@ -62,7 +73,6 @@ const SelectPlan = () => {
   };
 
   const handleContactUs = () => {
-    // You can swap this for a mailto: or a WhatsApp link later
     window.location.href = "mailto:support@brandify.zone?subject=Upgrade%20to%20Premium%20Plan";
   };
 
