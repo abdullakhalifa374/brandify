@@ -49,17 +49,18 @@ export const handler = async (event: any) => {
     const { action, email, mobile, data } = body;
 
     // --- SYNCHRONOUS ACCOUNT & DRIVE CREATION ---
-    if (action === 'createClientAccount' && email && mobile && data) {
+   if (action === 'createClientAccount' && email && mobile && data) {
       try {
+        console.log(`Starting account creation for mobile: ${mobile}, email: ${email}`);
         const frontlyId = `USR_${Date.now()}`; 
         
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + 14); 
         const formattedEndDate = endDate.toISOString().split('T')[0]; 
 
-        // 1. CREATE GOOGLE DRIVE FOLDER (Uses APP Folder ID)
+        // 1. CREATE GOOGLE DRIVE FOLDER
+        console.log("Step 1: Creating Google Drive Folder...");
         const masterFolderId = '1G_-MQrmoSWXMskatExfai5VOlmbf8efv'; 
-        
         const folder = await drive.files.create({
           requestBody: {
             name: `${data.company} - ${data.firstName} ${data.lastName}`,
@@ -69,18 +70,23 @@ export const handler = async (event: any) => {
           fields: 'id'
         });
         const newFolderId = folder.data.id;
+        console.log(`Folder created successfully with ID: ${newFolderId}`);
 
         // 2. SHARE FOLDER WITH USER
+        console.log("Step 2: Sharing folder with user email...");
         await drive.permissions.create({
           fileId: newFolderId!,
+          sendNotificationEmail: false, // <--- THE MAGIC FIX
           requestBody: {
             role: 'writer',
             type: 'user',
             emailAddress: email
           }
         });
+        console.log("Folder shared successfully.");
 
-        // 3. Create Main Client Row (Injecting the newFolderId into Column J)
+        // 3. Create Main Client Row
+        console.log("Step 3: Writing to Main Clients Sheet...");
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEETS.main,
           range: 'Clients!A:J',
@@ -96,6 +102,7 @@ export const handler = async (event: any) => {
         });
 
         // 4. Create Client Details Row
+        console.log("Step 4: Writing to Clients Details Sheet...");
         const detailsRow = Array(17).fill('');
         detailsRow[0] = mobile;
         detailsRow[10] = data.planName;    
@@ -115,6 +122,7 @@ export const handler = async (event: any) => {
         });
 
         // 5. Initialize Rewards Tracker Row
+        console.log("Step 5: Writing to Rewards Tracker Sheet...");
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEETS.rewardsTracker,
           range: "'Rewards'!A:G",
@@ -123,9 +131,10 @@ export const handler = async (event: any) => {
           requestBody: { values: [[mobile, 'no', 'no', 'no', 'no', 'no', 'no']] }
         });
 
+        console.log("Account creation fully completed.");
         return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
       } catch (err: any) {
-        console.error("Account Creation Error:", err.message);
+        console.error("Account Creation Error Details:", err); // <--- Will print the EXACT Google error
         return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to initialize account data' }) };
       }
     }
