@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth-context";
+import SelectPlan from "./pages/SelectPlan";
 
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -49,6 +50,16 @@ const App = () => (
               <Route path="contact" element={<AppContact />} />
               {/* NEW: Rewards Route */}
               <Route path="rewards" element={<Rewards />} /> 
+            </Route>
+
+
+          <Route element={<PublicLayout />}>
+              <Route path="/demo" element={<Demo />} />
+              <Route path="/marketplace" element={<Marketplace />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              {/* NEW: Plan Selection Route */}
+              <Route path="/select-plan" element={<SelectPlan />} /> 
             </Route>
 
             <Route path="*" element={<NotFound />} />
