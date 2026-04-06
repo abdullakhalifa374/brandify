@@ -1,12 +1,12 @@
 import { google } from 'googleapis';
-import { Readable } from 'stream'; 
+import { Readable } from 'stream';
 
 const SPREADSHEETS = {
-  main: '1tFv2_EPpNBeejwKTjQ_n7PFKTCCyZOCNcQwUVoRd8Yg', 
+  main: '1tFv2_EPpNBeejwKTjQ_n7PFKTCCyZOCNcQwUVoRd8Yg',
   demo: '1q7GSF986adnX47toF_UZUn8Sjroxfo-dfh2Zpo76kYk',
   marketplace: '1Q4bOSNOwc-sVR--TI0GE3xCqhQSNADEb3KHHKm0kcq0',
   reminders: '1Dal_T4o3fqZ8onWiyNyftNsIFK_S64-HAKwdH2Px2yg',
-  rewardsTracker: '1t8G0oh9yTqReBEY_AGKGjraUGwgWumIA1SeU1E61HNE' 
+  rewardsTracker: '1t8G0oh9yTqReBEY_AGKGjraUGwgWumIA1SeU1E61HNE'
 };
 
 // Map Task IDs to their specific column in the Rewards Sheet
@@ -38,7 +38,7 @@ export const handler = async (event: any) => {
       },
       scopes: [
         'https://www.googleapis.com/auth/spreadsheets',
-        'https://www.googleapis.com/auth/drive' 
+        'https://www.googleapis.com/auth/drive'
       ],
     });
 
@@ -48,16 +48,39 @@ export const handler = async (event: any) => {
     const body = JSON.parse(event.body || '{}');
     const { action, email, mobile, data } = body;
 
-// --- SYNCHRONOUS ACCOUNT CREATION ---
+    // --- SYNCHRONOUS ACCOUNT & DRIVE CREATION ---
     if (action === 'createClientAccount' && email && mobile && data) {
       try {
         const frontlyId = `USR_${Date.now()}`; 
         
         const endDate = new Date();
-        endDate.setDate(endDate.getDate() + 14); // 14 Day trial limit
+        endDate.setDate(endDate.getDate() + 14); 
         const formattedEndDate = endDate.toISOString().split('T')[0]; 
 
-        // 1. Create Main Client Row
+        // 1. CREATE GOOGLE DRIVE FOLDER (Uses APP Folder ID)
+        const masterFolderId = '1G_-MQrmoSWXMskatExfai5VOlmbf8efv'; 
+        
+        const folder = await drive.files.create({
+          requestBody: {
+            name: `${data.company} - ${data.firstName} ${data.lastName}`,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: [masterFolderId]
+          },
+          fields: 'id'
+        });
+        const newFolderId = folder.data.id;
+
+        // 2. SHARE FOLDER WITH USER
+        await drive.permissions.create({
+          fileId: newFolderId!,
+          requestBody: {
+            role: 'writer',
+            type: 'user',
+            emailAddress: email
+          }
+        });
+
+        // 3. Create Main Client Row (Injecting the newFolderId into Column J)
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEETS.main,
           range: 'Clients!A:J',
@@ -66,22 +89,22 @@ export const handler = async (event: any) => {
           requestBody: { 
             values: [[
               frontlyId, mobile, data.company, email, 
-              data.credits, '0', data.credits, // Dynamic Credits
-              formattedEndDate, 'Active', ''
+              data.credits, '0', data.credits, 
+              formattedEndDate, 'Active', newFolderId
             ]] 
           }
         });
 
-        // 2. Create Client Details Row
+        // 4. Create Client Details Row
         const detailsRow = Array(17).fill('');
         detailsRow[0] = mobile;
-        detailsRow[10] = data.planName;    // K: Plan
-        detailsRow[11] = '0';              // L: Price (0 for trial)
-        detailsRow[12] = data.freeTemplates; // M: Free Templates
-        detailsRow[13] = '0';              // N: Templates Used
-        detailsRow[14] = data.firstName;   // O: First Name
-        detailsRow[15] = data.lastName;    // P: Last Name
-        detailsRow[16] = data.credits;     // Q: Max Credits
+        detailsRow[10] = data.planName;    
+        detailsRow[11] = '0';              
+        detailsRow[12] = data.freeTemplates; 
+        detailsRow[13] = '0';              
+        detailsRow[14] = data.firstName;   
+        detailsRow[15] = data.lastName;    
+        detailsRow[16] = data.credits;     
 
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEETS.main,
@@ -91,7 +114,7 @@ export const handler = async (event: any) => {
           requestBody: { values: [detailsRow] }
         });
 
-        // 3. Initialize Rewards Tracker Row
+        // 5. Initialize Rewards Tracker Row
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEETS.rewardsTracker,
           range: "'Rewards'!A:G",
@@ -107,8 +130,6 @@ export const handler = async (event: any) => {
       }
     }
 
-
-    
     // --- NEW: SUBMIT TO WEBHOOK & SET "VERIFYING" ---
     if (action === 'submitRewardVerification' && mobile && data) {
       try {
@@ -121,12 +142,12 @@ export const handler = async (event: any) => {
         await fetch('https://cloud.activepieces.com/api/v1/webhooks/EwUDW9h0Aj3fW5sopHcg9', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            mobile, 
-            taskId, 
-            fileName, 
-            mimeType, 
-            image: base64 
+          body: JSON.stringify({
+            mobile,
+            taskId,
+            fileName,
+            mimeType,
+            image: base64
           })
         }).catch(err => console.error("Webhook delivery failed:", err));
 
@@ -171,6 +192,7 @@ export const handler = async (event: any) => {
       try {
         const buffer = Buffer.from(data.base64, 'base64');
         const driveRes = await drive.files.create({
+          // Keeping the logo folder ID here
           requestBody: { name: data.fileName, parents: ['1xkFw128Xbh0y8-Z4OCkkR4yrvTtC9IKC'] },
           media: { mimeType: data.mimeType, body: Readable.from(buffer) },
           fields: 'id'
@@ -218,7 +240,7 @@ export const handler = async (event: any) => {
     if (action === 'getRewardsTracker' && mobile) {
       try {
         const response = await sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEETS.rewardsTracker, range: "'Rewards'!A:G" 
+          spreadsheetId: SPREADSHEETS.rewardsTracker, range: "'Rewards'!A:G"
         });
         const rows = response.data.values || [];
         const userRow = rows.find((row: any[]) => row[0] === mobile);
@@ -253,7 +275,7 @@ export const handler = async (event: any) => {
     // --- MARKETPLACE FETCH ---
     if (action === 'getMarketplaceData') {
       const [libraryRes, imagesRes] = await Promise.all([
-        sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Library'!A:T" }), 
+        sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Library'!A:T" }),
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Images'!A:D" })
       ]);
       return { statusCode: 200, headers, body: JSON.stringify({ data: { library: libraryRes.data.values || [], images: imagesRes.data.values || [] } }) };
@@ -265,7 +287,7 @@ export const handler = async (event: any) => {
       const rows = detailsRes.data.values || [];
       const rowIndex = rows.findIndex((row: any[]) => row[0] === mobile);
       if (rowIndex === -1) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Client not found' }) };
-      const sheetRow = rowIndex + 1; 
+      const sheetRow = rowIndex + 1;
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEETS.main, range: `'Clients Details'!D${sheetRow}:G${sheetRow}`, valueInputOption: 'USER_ENTERED',
         requestBody: { values: [[data.website || "", data.socialMedia || "", data.supportPhone || "", data.supportEmail || ""]] }
@@ -278,7 +300,7 @@ export const handler = async (event: any) => {
       const newId = `FRM_${Date.now()}`;
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEETS.main, range: "'Clients Forms'!A:C", valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
-        requestBody: { values: [[newId, mobile, data.templateId]] } 
+        requestBody: { values: [[newId, mobile, data.templateId]] }
       });
       const detailsRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Details'!A:Q" });
       const rows = detailsRes.data.values || [];
@@ -312,20 +334,20 @@ export const handler = async (event: any) => {
       const clientRow = clients.find(row => row[3] === email);
       if (!clientRow) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Client not found in database' }) };
 
-      const mobile = clientRow[1]; 
+      const mobile = clientRow[1];
       const detailsRow = details.find(row => row[0] === mobile) || [];
       const userFormRows = clientForms.filter(row => row[1] === mobile);
-      const userTemplateIds = userFormRows.map(row => row[2]); 
+      const userTemplateIds = userFormRows.map(row => row[2]);
 
       const myTemplates = forms
-        .filter(row => userTemplateIds.includes(row[2])) 
+        .filter(row => userTemplateIds.includes(row[2]))
         .map(row => ({
           frontly_id: row[0] || "", title: row[1] || "", id: row[2] || "", category: row[3] || "",
           type: row[4] || "", credit: parseInt(row[5] || "0", 10), formUrl: row[6] || "", preview: row[7] || ""
         }));
 
       const userReminders = reminders
-        .filter(row => row[1] === email) 
+        .filter(row => row[1] === email)
         .map(row => ({
           mobile: row[0] || "", email: row[1] || "", type: row[2] || "", date: row[3] || "", status: row[4] || "", plan: row[5] || ""
         }));
