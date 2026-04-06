@@ -22,7 +22,7 @@ const Signup = () => {
     setErrorMessage(null);
 
     try {
-      // 1. Create the user in Firebase by passing the full object
+      // 1. Create the user in Firebase Auth
       await signup({
         firstName: form.firstName,
         lastName: form.lastName,
@@ -31,32 +31,13 @@ const Signup = () => {
         company: form.company,
         password: form.password
       });
-      
-      // 2. Send the data to your Activepieces Webhook
-      const webhookData = {
-        firstName: form.firstName,
-        lastName: form.lastName,
-        email: form.email,
-        mobile: form.phone,
-        company: form.company,
-        source: "Brandify App Signup",
-        timestamp: new Date().toISOString()
-      };
 
-      await fetch("https://cloud.activepieces.com/api/v1/webhooks/HfoxJpGT4nQbK0lWGRcI0", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(webhookData),
-      });
-
-      // 3. Redirect to the App Dashboard
-      navigate("/app");
+      // 2. Pass the data to the Select Plan page!
+      navigate("/select-plan", { state: { signupData: form } });
       
     } catch (error: any) {
       console.error("Signup failed:", error);
-      setErrorMessage(error.message || "An unknown error occurred while creating your account.");
+      setErrorMessage(error.message || "An error occurred while creating your account.");
     } finally {
       setLoading(false);
     }
@@ -67,18 +48,15 @@ const Signup = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Start your free trial</CardTitle>
-          <CardDescription>14 days free • 25 credits • No credit card required</CardDescription>
+          <CardDescription>No credit card required</CardDescription>
         </CardHeader>
         <CardContent>
-
-          {/* Error Display Box */}
           {errorMessage && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 flex items-start gap-3 text-sm">
               <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
-
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
@@ -107,7 +85,7 @@ const Signup = () => {
               <Input id="password" type="password" required value={form.password} onChange={e => update("password", e.target.value)} placeholder="••••••••" />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Create Account"}
+              {loading ? "Creating account..." : "Continue to Plans"}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
