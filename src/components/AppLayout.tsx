@@ -1,44 +1,27 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "@/lib/auth-context";
+import { Outlet } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import AppSidebar from "@/components/AppSidebar";
+import { AppSidebar } from "./AppSidebar";
+import PublicNavbar from "./PublicNavbar";
 
 const AppLayout = () => {
-  // NEW: We now pull `client` from useAuth as well
-  const { user, client, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
-  // Guard 1: If they aren't logged into Firebase, send them to Login
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Guard 2: If they are logged in but don't have a Google Sheets profile, send them to Plans!
-  if (!client) {
-    return <Navigate to="/select-plan" replace />;
-  }
-
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        <div className="flex-1 flex flex-col">
-          <header className="h-14 flex items-center border-b border-border bg-card px-4">
-            <SidebarTrigger />
-          </header>
-          <main className="flex-1 p-6">
+    <div className="flex flex-col min-h-screen">
+      {/* 1. Global Top Navigation Bar */}
+      <div className="z-50">
+        <PublicNavbar />
+      </div>
+
+      {/* 2. Dashboard Workspace (Sidebar + Main Content) */}
+      <SidebarProvider>
+        <div className="flex min-h-[calc(100vh-3.5rem)] w-full">
+          <AppSidebar />
+          <main className="flex-1 bg-muted/20 p-4 md:p-6 overflow-y-auto">
+            <SidebarTrigger className="md:hidden mb-4" />
             <Outlet />
           </main>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </div>
   );
 };
 
