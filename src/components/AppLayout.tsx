@@ -1,6 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "./AppSidebar";
+import AppSidebar from "./AppSidebar"; // <-- FIXED IMPORT (Removed curly braces)
 import PublicNavbar from "./PublicNavbar";
 
 const AppLayout = () => {
