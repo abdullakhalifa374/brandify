@@ -7,6 +7,7 @@ interface TemplateCardProps {
   title: string;
   category: string;
   type?: string; 
+  size?: string; // NEW: Added size property
   credit?: number;
   price?: number;
   usage?: number;
@@ -14,14 +15,16 @@ interface TemplateCardProps {
   onCtaClick: () => void;
 }
 
-const TemplateCard = ({ preview, title, category, type, credit, price, usage, ctaLabel, onCtaClick }: TemplateCardProps) => {
+const TemplateCard = ({ preview, title, category, type, size, credit, price, usage, ctaLabel, onCtaClick }: TemplateCardProps) => {
   return (
     <Card className="group overflow-hidden border border-border bg-card transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="aspect-video w-full overflow-hidden">
+      {/* DESIGN UPDATE: aspect-square, padding 20px, #F7F8FC background */}
+      <div className="aspect-square w-full bg-[#F7F8FC] p-[20px] overflow-hidden flex items-center justify-center">
         <img
           src={preview}
           alt={title}
-          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+          /* DESIGN UPDATE: object-contain makes sure nothing is cropped */
+          className="h-full w-full object-contain transition-transform group-hover:scale-105"
           loading="lazy"
         />
       </div>
@@ -29,8 +32,9 @@ const TemplateCard = ({ preview, title, category, type, credit, price, usage, ct
         <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2">{title}</h3>
         <div className="flex items-center gap-1.5 flex-wrap">
           <Badge variant="secondary" className="text-xs font-medium">{category}</Badge>
-          {/* Automatically shows the Type badge if it exists */}
           {type && <Badge variant="outline" className="text-xs font-medium">{type}</Badge>}
+          {/* Automatically shows the Size badge if it exists */}
+          {size && <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-transparent text-xs font-medium">{size}</Badge>}
         </div>
         <div className="flex items-center justify-between">
           {credit !== undefined && (
