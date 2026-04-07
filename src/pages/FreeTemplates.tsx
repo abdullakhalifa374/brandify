@@ -2,10 +2,9 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getDemoTemplates } from "@/lib/googleSheets";
 import TemplateCard from "@/components/TemplateCard";
-import FilterBar from "@/components/FilterBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, AlertCircle, Save, Edit2, Search } from "lucide-react";
+import { Loader2, AlertCircle, Save, Edit2, Search, Folder, Maximize, ArrowDownUp } from "lucide-react";
 
 const FORMS_BASE = "https://forms.brandify.zone";
 
@@ -18,7 +17,7 @@ interface FreeTemplate {
   type: string;
   usage: number;
   size: string;
-  originalIndex: number; // Used for "Newest/Oldest" sorting
+  originalIndex: number; 
 }
 
 const FreeTemplates = () => {
@@ -26,7 +25,6 @@ const FreeTemplates = () => {
   const [email, setEmail] = useState("");
   const [inputEmail, setInputEmail] = useState("");
   
-  // NEW FILTERS
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [sizeFilter, setSizeFilter] = useState("all");
@@ -69,8 +67,8 @@ const FreeTemplates = () => {
           category: row[4] || "",
           type: row[5] || "",
           usage: parseInt(row[6] || "0", 10),
-          size: row[7] || "", // Column H
-          originalIndex: index // Tracks row number for Newest/Oldest sorting
+          size: row[7] || "", 
+          originalIndex: index 
         }));
 
         setTemplates(formattedData);
@@ -106,34 +104,29 @@ const FreeTemplates = () => {
     window.open(finalUrl, "_blank");
   };
 
-  // EXTRACT DYNAMIC FILTER OPTIONS
   const categories = Array.from(new Set(templates.map(t => t.category).filter(Boolean)));
   const sizes = Array.from(new Set(templates.map(t => t.size).filter(Boolean)));
 
-  // APPLY FILTERS & SORTING
   let processedTemplates = [...templates];
 
-  // 1. Search
   if (searchQuery) {
     processedTemplates = processedTemplates.filter(t => 
       t.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }
-  // 2. Category
   if (category !== "all") {
     processedTemplates = processedTemplates.filter(t => t.category === category);
   }
-  // 3. Size
   if (sizeFilter !== "all") {
     processedTemplates = processedTemplates.filter(t => t.size === sizeFilter);
   }
-  // 4. Sorting
+  
   processedTemplates.sort((a, b) => {
     if (sortBy === "a-z") return a.title.localeCompare(b.title);
     if (sortBy === "z-a") return b.title.localeCompare(a.title);
     if (sortBy === "usage-high") return b.usage - a.usage;
     if (sortBy === "oldest") return a.originalIndex - b.originalIndex;
-    return b.originalIndex - a.originalIndex; // "newest" (default)
+    return b.originalIndex - a.originalIndex; 
   });
 
   return (
@@ -175,34 +168,60 @@ const FreeTemplates = () => {
         </div>
       </div>
 
-      {/* FILTER & SEARCH BAR */}
-      <div className="bg-card border border-border p-4 rounded-lg shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+      {/* NEW FILTERS DESIGN: White background, no border, one line, rounded inputs */}
+      <div className="bg-white py-2">
+        <div className="flex flex-row items-center gap-3 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
           
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          {/* Search */}
+          <div className="relative min-w-[200px] flex-1 md:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
             <Input 
               placeholder="Search templates..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-full"
+              className="pl-9 h-10 w-full rounded-full bg-[#F1F2FA] border border-[#D8DEEF] text-[#000000] focus-visible:ring-1 focus-visible:ring-[#C5C5F9]"
             />
           </div>
 
-          <div className="flex gap-3 w-full md:w-auto overflow-x-auto">
+          {/* Category Filter */}
+          <div className="relative shrink-0">
+            <Folder className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
+            <select 
+              value={category} 
+              onChange={(e) => setCategory(e.target.value)}
+              className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
+            >
+              <option value="all">All Categories</option>
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+          </div>
+
+          {/* Size Filter */}
+          <div className="relative shrink-0">
+            <Maximize className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
             <select 
               value={sizeFilter} 
               onChange={(e) => setSizeFilter(e.target.value)}
-              className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
             >
               <option value="all">All Sizes</option>
               {sizes.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+          </div>
 
+          {/* Sort Filter */}
+          <div className="relative shrink-0">
+            <ArrowDownUp className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
             <select 
               value={sortBy} 
               onChange={(e) => setSortBy(e.target.value)}
-              className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
@@ -210,17 +229,14 @@ const FreeTemplates = () => {
               <option value="z-a">Alphabetical (Z-A)</option>
               <option value="usage-high">Most Popular</option>
             </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
           </div>
+
         </div>
-        
-        <FilterBar
-          categories={categories}
-          selectedCategory={category}
-          onCategoryChange={setCategory}
-        />
       </div>
 
-      {/* ERROR DISPLAY */}
       {errorMessage && (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
@@ -231,14 +247,13 @@ const FreeTemplates = () => {
         </div>
       )}
 
-      {/* CONTENT GRID */}
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-24 space-y-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">Loading templates...</p>
         </div>
       ) : processedTemplates.length === 0 ? (
-        <div className="text-center py-16 bg-card rounded-lg border border-border">
+        <div className="text-center py-16 bg-white rounded-lg">
           <p className="text-muted-foreground">No templates found matching your filters.</p>
         </div>
       ) : (
