@@ -6,8 +6,8 @@ const PublicNavbar = () => {
   const { user } = useAuth();
   const location = useLocation();
 
-  const navLinks = [
-    { label: "Demo", path: "/demo" },
+const navLinks = [
+    { label: "Free Templates", path: "/free-templates" },
     { label: "Marketplace", path: "/marketplace" },
   ];
 
