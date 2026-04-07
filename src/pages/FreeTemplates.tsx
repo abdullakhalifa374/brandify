@@ -132,39 +132,37 @@ const FreeTemplates = () => {
   return (
     <div className="container py-8 space-y-8">
       
-      {/* HEADER & EMAIL SECTION */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-        <div className="space-y-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Free Templates</h1>
-            <p className="text-muted-foreground mt-1">Try our templates completely free</p>
-          </div>
+      {/* DESIGN UPDATE: Centered Header & Centered/Widened Email Collection */}
+      <div className="flex flex-col items-center justify-center text-center gap-5 mb-8">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">Free Templates</h1>
+          <p className="text-lg text-muted-foreground mt-2">Try our templates completely free</p>
+        </div>
 
-          <div className="h-10"> 
-            {email ? (
-              <div className="inline-flex items-center gap-2 text-sm bg-primary/10 text-primary px-3 py-1.5 rounded-md border border-primary/20">
-                <span>Saving progress to: <strong>{email}</strong></span>
-                {!user && ( 
-                  <button onClick={() => setEmail("")} className="hover:underline flex items-center gap-1 font-medium ml-2">
-                    <Edit2 className="h-3 w-3" /> Change
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 max-w-sm">
-                <Input
-                  type="email"
-                  placeholder="Enter email to save progress"
-                  value={inputEmail}
-                  onChange={e => setInputEmail(e.target.value)}
-                  className="h-9"
-                />
-                <Button size="sm" onClick={handleSaveEmail} className="h-9">
-                  <Save className="h-4 w-4 mr-2"/> Save
-                </Button>
-              </div>
-            )}
-          </div>
+        <div className="h-10 flex items-center justify-center w-full"> 
+          {email ? (
+            <div className="inline-flex items-center gap-2 text-sm bg-primary/10 text-primary px-4 py-2 rounded-md border border-primary/20">
+              <span>Saving progress to: <strong>{email}</strong></span>
+              {!user && ( 
+                <button onClick={() => setEmail("")} className="hover:underline flex items-center gap-1 font-medium ml-3">
+                  <Edit2 className="h-3 w-3" /> Change
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2 w-full max-w-md">
+              <Input
+                type="email"
+                placeholder="Enter email to save progress"
+                value={inputEmail}
+                onChange={e => setInputEmail(e.target.value)}
+                className="h-10 w-[300px]" /* WIDER INPUT FIELD */
+              />
+              <Button onClick={handleSaveEmail} className="h-10 px-6">
+                <Save className="h-4 w-4 mr-2"/> Save
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
