@@ -19,9 +19,9 @@ const TemplateCard = ({ preview, title, category, type, size, credit, price, usa
   return (
     <Card className="group overflow-hidden border border-border bg-card transition-all hover:-translate-y-0.5 hover:shadow-md">
       
-      {/* DESIGN UPDATE: 5px padding with card background (white), inner background #F7F8FC */}
-      <div className="aspect-square w-full bg-card p-[5px] overflow-hidden">
-        <div className="h-full w-full bg-[#F7F8FC] flex items-center justify-center overflow-hidden rounded-sm">
+      {/* DESIGN UPDATE: Outer white padding (5px), Inner #F7F8FC padding (10px) */}
+      <div className="aspect-square w-full bg-card p-[5px]">
+        <div className="h-full w-full bg-[#F7F8FC] p-[10px] flex items-center justify-center rounded-md overflow-hidden">
           <img
             src={preview}
             alt={title}
@@ -35,7 +35,6 @@ const TemplateCard = ({ preview, title, category, type, size, credit, price, usa
         <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2">{title}</h3>
         
         <div className="flex items-center gap-1.5 flex-wrap">
-          {/* TAG ORDER UPDATE: 1. Personal/Business, 2. Category, 3. File Type (Size) */}
           {type && <Badge variant="outline" className="text-xs font-medium">{type}</Badge>}
           <Badge variant="secondary" className="text-xs font-medium">{category}</Badge>
           {size && <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-transparent text-xs font-medium">{size}</Badge>}
@@ -53,7 +52,6 @@ const TemplateCard = ({ preview, title, category, type, size, credit, price, usa
           )}
         </div>
 
-        {/* BUTTON DESIGN UPDATE: Custom Colors */}
         <Button 
           onClick={onCtaClick} 
           className="w-full bg-[#F0EFFC] text-[#3933EB] border border-[#C5C5F9] hover:bg-[#E2E0F9] transition-colors" 
