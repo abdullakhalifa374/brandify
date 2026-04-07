@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getMarketplaceData } from "@/lib/googleSheets";
 import TemplateCard from "@/components/TemplateCard";
-import FilterBar from "@/components/FilterBar";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertCircle, ShoppingCart } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, AlertCircle, ShoppingCart, Search, Folder, Maximize } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; 
@@ -31,12 +31,16 @@ interface MarketplaceTemplate {
 const FORMS_SERVICES_BASE = "https://forms.brandify.zone/services/";
 
 const Marketplace = () => {
-  const { user, client, templates: ownedClientTemplates } = useAuth(); // NEW: Pulling owned templates from context
+  const { user, client, templates: ownedClientTemplates } = useAuth(); 
   const navigate = useNavigate();
   
   const [templates, setTemplates] = useState<MarketplaceTemplate[]>([]);
+  
+  // NEW FILTERS STATE
+  const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [type, setType] = useState("all");
+  
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -161,8 +165,6 @@ const Marketplace = () => {
   const categories = Array.from(new Set(templates.map(t => t.category).filter(Boolean)));
   const types = Array.from(new Set(templates.map(t => t.type).filter(Boolean)));
 
-  // NEW: Filter logic to separate owned vs available
-  // We extract the base IDs from the user's owned templates (e.g. 'travel-1' from 'travel-1-red')
   const ownedBaseIds = ownedClientTemplates?.map(t => {
     const parts = t.id.split('-');
     if (parts.length > 1 && ['default','red','blue','green','yellow','orange','pink','purple','black','gray','white'].includes(parts[parts.length-1].toLowerCase())) {
@@ -171,30 +173,73 @@ const Marketplace = () => {
     return parts.join('-');
   }) || [];
 
-  // 1. Templates they DO NOT own (Available to buy/claim)
   const availableTemplates = templates.filter(f => {
-    if (ownedBaseIds.includes(f.template_id)) return false; // Hide owned ones
+    if (ownedBaseIds.includes(f.template_id)) return false; 
+    if (searchQuery && !f.title.toLowerCase().includes(searchQuery.toLowerCase())) return false; // NEW Search logic
     if (category !== "all" && f.category !== category) return false;
     if (type !== "all" && f.type !== type) return false;
     return true;
   });
 
-  // 2. Templates they ALREADY own
   const myOwnedTemplates = templates.filter(f => ownedBaseIds.includes(f.template_id));
-
   const visibleThumbnails = selectedTemplate?.gallery.filter(img => img.color.toLowerCase() === selectedColor.toLowerCase()) || [];
 
   return (
-    <div className="container py-8 space-y-12">
+    <div className="container py-8 space-y-8">
       
-      {/* HEADER & FILTERS */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Marketplace</h1>
-          <p className="text-muted-foreground">Browse premium templates for your business</p>
-        </div>
-        <div className="shrink-0">
-          <FilterBar categories={categories} types={types} selectedCategory={category} selectedType={type} onCategoryChange={setCategory} onTypeChange={setType} />
+      {/* HEADER */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Marketplace</h1>
+        <p className="text-muted-foreground">Browse premium templates for your business</p>
+      </div>
+
+      {/* NEW FILTERS DESIGN: White background, no border, one line, rounded inputs */}
+      <div className="bg-white py-2">
+        <div className="flex flex-row items-center gap-3 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+          
+          {/* Search */}
+          <div className="relative min-w-[200px] flex-1 md:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
+            <Input 
+              placeholder="Search templates..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-10 w-full rounded-full bg-[#F1F2FA] border border-[#D8DEEF] text-[#000000] focus-visible:ring-1 focus-visible:ring-[#C5C5F9]"
+            />
+          </div>
+
+          {/* Category Filter */}
+          <div className="relative shrink-0">
+            <Folder className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
+            <select 
+              value={category} 
+              onChange={(e) => setCategory(e.target.value)}
+              className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
+            >
+              <option value="all">All Categories</option>
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+          </div>
+
+          {/* Type Filter */}
+          <div className="relative shrink-0">
+            <Maximize className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
+            <select 
+              value={type} 
+              onChange={(e) => setType(e.target.value)}
+              className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
+            >
+              <option value="all">All Types</option>
+              {types.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -213,7 +258,7 @@ const Marketplace = () => {
             <p className="text-muted-foreground">Loading marketplace...</p>
           </div>
         ) : availableTemplates.length === 0 ? (
-          <div className="text-center py-16 bg-card rounded-lg border border-border mt-0">
+          <div className="text-center py-16 bg-white rounded-lg mt-0">
             <p className="text-muted-foreground">No available templates found for these filters.</p>
           </div>
         ) : (
@@ -225,7 +270,7 @@ const Marketplace = () => {
         )}
       </div>
 
-      {/* NEW: ALREADY OWNED SECTION */}
+      {/* ALREADY OWNED SECTION */}
       {!isLoading && myOwnedTemplates.length > 0 && (
         <div className="space-y-4 pt-8 border-t border-border">
           <h2 className="text-xl font-bold tracking-tight text-foreground">Templates You Own</h2>
@@ -237,7 +282,7 @@ const Marketplace = () => {
                 title={f.title} 
                 category={f.category} 
                 type={f.type} 
-                price={0} // Hide price since they own it
+                price={0} 
                 ctaLabel="Already Owned" 
                 onCtaClick={() => {
                    alert("You already own a variation of this template! Check the 'My Templates' tab in your dashboard.");
@@ -259,11 +304,11 @@ const Marketplace = () => {
                 <DialogDescription className="text-base mt-2">{selectedTemplate.description || "No description provided."}</DialogDescription>
               </DialogHeader>
               
-              <div className="rounded-lg overflow-hidden border border-border bg-muted aspect-video relative flex items-center justify-center">
+              <div className="rounded-lg overflow-hidden border border-border bg-[#F7F8FC] aspect-video relative flex items-center justify-center p-[5px]">
                 <img 
                   src={activeImageUrl} 
                   alt={selectedTemplate.title}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain bg-white rounded-sm"
                 />
               </div>
 
@@ -273,11 +318,11 @@ const Marketplace = () => {
                     <button 
                       key={idx}
                       onClick={() => setActiveImageUrl(img.url)}
-                      className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-md border-2 transition-all ${
+                      className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-md border-2 transition-all bg-[#F7F8FC] p-1 ${
                         activeImageUrl === img.url ? "border-primary" : "border-transparent hover:border-border"
                       }`}
                     >
-                      <img src={img.url} alt={`Thumbnail ${idx}`} className="h-full w-full object-cover" />
+                      <img src={img.url} alt={`Thumbnail ${idx}`} className="h-full w-full object-contain bg-white" />
                     </button>
                   ))}
                 </div>
