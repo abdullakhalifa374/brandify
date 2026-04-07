@@ -304,7 +304,7 @@ export const handler = async (event: any) => {
 
     // --- DEMO FETCH ---
     if (action === 'getDemoTemplates') {
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.demo, range: "'Demo Templates'!A:G" });
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.demo, range: "'Demo Templates'!A:H" });
       return { statusCode: 200, headers, body: JSON.stringify({ data: response.data.values || [] }) };
     }
 
