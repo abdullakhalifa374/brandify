@@ -36,7 +36,6 @@ const Marketplace = () => {
   
   const [templates, setTemplates] = useState<MarketplaceTemplate[]>([]);
   
-  // NEW FILTERS STATE
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [type, setType] = useState("all");
@@ -44,7 +43,6 @@ const Marketplace = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Modal & Image State
   const [selectedTemplate, setSelectedTemplate] = useState<MarketplaceTemplate | null>(null);
   const [selectedColor, setSelectedColor] = useState<string>("Default"); 
   const [activeImageUrl, setActiveImageUrl] = useState<string>(""); 
@@ -175,7 +173,7 @@ const Marketplace = () => {
 
   const availableTemplates = templates.filter(f => {
     if (ownedBaseIds.includes(f.template_id)) return false; 
-    if (searchQuery && !f.title.toLowerCase().includes(searchQuery.toLowerCase())) return false; // NEW Search logic
+    if (searchQuery && !f.title.toLowerCase().includes(searchQuery.toLowerCase())) return false; 
     if (category !== "all" && f.category !== category) return false;
     if (type !== "all" && f.type !== type) return false;
     return true;
@@ -193,12 +191,12 @@ const Marketplace = () => {
         <p className="text-muted-foreground">Browse premium templates for your business</p>
       </div>
 
-      {/* NEW FILTERS DESIGN: White background, no border, one line, rounded inputs */}
-      <div className="bg-white py-2">
-        <div className="flex flex-row items-center gap-3 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+      {/* FILTERS DESIGN: No background, Search left, Filters right */}
+      <div className="w-full">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
           
-          {/* Search */}
-          <div className="relative min-w-[200px] flex-1 md:max-w-xs">
+          {/* Search (Left) */}
+          <div className="relative w-full md:max-w-sm shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
             <Input 
               placeholder="Search templates..." 
@@ -208,38 +206,40 @@ const Marketplace = () => {
             />
           </div>
 
-          {/* Category Filter */}
-          <div className="relative shrink-0">
-            <Folder className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
-            <select 
-              value={category} 
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
-            >
-              <option value="all">All Categories</option>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          {/* Dropdown Filters (Right) */}
+          <div className="flex flex-row items-center gap-3 overflow-x-auto w-full md:w-auto scrollbar-hide pb-2 md:pb-0">
+            {/* Category Filter */}
+            <div className="relative shrink-0">
+              <Folder className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
+              <select 
+                value={category} 
+                onChange={(e) => setCategory(e.target.value)}
+                className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
+              >
+                <option value="all">All Categories</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
+            {/* Type Filter */}
+            <div className="relative shrink-0">
+              <Maximize className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
+              <select 
+                value={type} 
+                onChange={(e) => setType(e.target.value)}
+                className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
+              >
+                <option value="all">All Types</option>
+                {types.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
             </div>
           </div>
-
-          {/* Type Filter */}
-          <div className="relative shrink-0">
-            <Maximize className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
-            <select 
-              value={type} 
-              onChange={(e) => setType(e.target.value)}
-              className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
-            >
-              <option value="all">All Types</option>
-              {types.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            </div>
-          </div>
-
         </div>
       </div>
 
@@ -304,12 +304,15 @@ const Marketplace = () => {
                 <DialogDescription className="text-base mt-2">{selectedTemplate.description || "No description provided."}</DialogDescription>
               </DialogHeader>
               
-              <div className="rounded-lg overflow-hidden border border-border bg-[#F7F8FC] aspect-video relative flex items-center justify-center p-[5px]">
-                <img 
-                  src={activeImageUrl} 
-                  alt={selectedTemplate.title}
-                  className="w-full h-full object-contain bg-white rounded-sm"
-                />
+              {/* MODAL IMAGE DESIGN UPDATE TO MATCH CARDS */}
+              <div className="rounded-lg overflow-hidden border border-border bg-card aspect-video relative flex items-center justify-center p-[5px]">
+                <div className="h-full w-full bg-[#F7F8FC] p-[10px] flex items-center justify-center rounded-md overflow-hidden">
+                  <img 
+                    src={activeImageUrl} 
+                    alt={selectedTemplate.title}
+                    className="h-full w-full object-contain bg-white"
+                  />
+                </div>
               </div>
 
               {visibleThumbnails.length > 1 && (
