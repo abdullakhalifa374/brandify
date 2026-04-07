@@ -9,13 +9,13 @@ import SelectPlan from "./pages/SelectPlan";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import Demo from "./pages/Demo";
+// NEW: Import FreeTemplates instead of Demo
+import FreeTemplates from "./pages/FreeTemplates"; 
 import Marketplace from "./pages/Marketplace";
 import AppHome from "./pages/AppHome";
 import AppTemplates from "./pages/AppTemplates";
 import AppAccount from "./pages/AppAccount";
 import AppContact from "./pages/AppContact";
-// NEW: Import the Rewards page
 import Rewards from "./pages/Rewards"; 
 import NotFound from "./pages/NotFound";
 
@@ -36,7 +36,8 @@ const App = () => (
 
             {/* Public routes with navbar */}
             <Route element={<PublicLayout />}>
-              <Route path="/demo" element={<Demo />} />
+              {/* NEW: Updated Route */}
+              <Route path="/free-templates" element={<FreeTemplates />} />
               <Route path="/marketplace" element={<Marketplace />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
@@ -48,17 +49,16 @@ const App = () => (
               <Route path="templates" element={<AppTemplates />} />
               <Route path="account" element={<AppAccount />} />
               <Route path="contact" element={<AppContact />} />
-              {/* NEW: Rewards Route */}
               <Route path="rewards" element={<Rewards />} /> 
             </Route>
 
-
-          <Route element={<PublicLayout />}>
-              <Route path="/demo" element={<Demo />} />
+            {/* Second Public routes block including SelectPlan */}
+            <Route element={<PublicLayout />}>
+              {/* NEW: Updated Route */}
+              <Route path="/free-templates" element={<FreeTemplates />} />
               <Route path="/marketplace" element={<Marketplace />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
-              {/* NEW: Plan Selection Route */}
               <Route path="/select-plan" element={<SelectPlan />} /> 
             </Route>
 
