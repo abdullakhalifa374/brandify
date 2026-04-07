@@ -168,12 +168,12 @@ const FreeTemplates = () => {
         </div>
       </div>
 
-      {/* NEW FILTERS DESIGN: White background, no border, one line, rounded inputs */}
-      <div className="bg-white py-2">
-        <div className="flex flex-row items-center gap-3 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+      {/* FILTERS DESIGN: No background, Search left, Filters right */}
+      <div className="w-full">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
           
-          {/* Search */}
-          <div className="relative min-w-[200px] flex-1 md:max-w-xs">
+          {/* Search (Left) */}
+          <div className="relative w-full md:max-w-sm shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
             <Input 
               placeholder="Search templates..." 
@@ -183,57 +183,59 @@ const FreeTemplates = () => {
             />
           </div>
 
-          {/* Category Filter */}
-          <div className="relative shrink-0">
-            <Folder className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
-            <select 
-              value={category} 
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
-            >
-              <option value="all">All Categories</option>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          {/* Dropdown Filters (Right) */}
+          <div className="flex flex-row items-center gap-3 overflow-x-auto w-full md:w-auto scrollbar-hide pb-2 md:pb-0">
+            {/* Category Filter */}
+            <div className="relative shrink-0">
+              <Folder className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
+              <select 
+                value={category} 
+                onChange={(e) => setCategory(e.target.value)}
+                className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
+              >
+                <option value="all">All Categories</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
+            {/* Size Filter */}
+            <div className="relative shrink-0">
+              <Maximize className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
+              <select 
+                value={sizeFilter} 
+                onChange={(e) => setSizeFilter(e.target.value)}
+                className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
+              >
+                <option value="all">All Sizes</option>
+                {sizes.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
+            {/* Sort Filter */}
+            <div className="relative shrink-0">
+              <ArrowDownUp className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
+              <select 
+                value={sortBy} 
+                onChange={(e) => setSortBy(e.target.value)}
+                className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="a-z">Alphabetical (A-Z)</option>
+                <option value="z-a">Alphabetical (Z-A)</option>
+                <option value="usage-high">Most Popular</option>
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
             </div>
           </div>
-
-          {/* Size Filter */}
-          <div className="relative shrink-0">
-            <Maximize className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
-            <select 
-              value={sizeFilter} 
-              onChange={(e) => setSizeFilter(e.target.value)}
-              className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
-            >
-              <option value="all">All Sizes</option>
-              {sizes.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            </div>
-          </div>
-
-          {/* Sort Filter */}
-          <div className="relative shrink-0">
-            <ArrowDownUp className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
-            <select 
-              value={sortBy} 
-              onChange={(e) => setSortBy(e.target.value)}
-              className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="a-z">Alphabetical (A-Z)</option>
-              <option value="z-a">Alphabetical (Z-A)</option>
-              <option value="usage-high">Most Popular</option>
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            </div>
-          </div>
-
         </div>
       </div>
 
