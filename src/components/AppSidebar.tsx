@@ -79,23 +79,19 @@ const AppSidebar = () => {
       </SidebarContent>
 
       <SidebarFooter className="p-3 space-y-3">
-        {/* CUSTOM DOCUMENTATION BOX */}
+        {/* DESIGN UPDATE: Centered, Stacked Documentation Box */}
         {collapsed ? (
           <a href="https://www.brandify.zone/documentation" target="_blank" rel="noopener noreferrer" title="Documentation" className="flex items-center justify-center p-2 rounded-xl bg-[#F0EFFC] text-[#3933EB] hover:bg-[#E2E0F9] transition-colors">
             <BookOpen className="w-5 h-5" />
           </a>
         ) : (
           <a href="https://www.brandify.zone/documentation" target="_blank" rel="noopener noreferrer" className="block outline-none">
-            <div className="bg-[#F0EFFC] border border-[#C5C5F9] rounded-xl p-4 transition-all hover:bg-[#E2E0F9] hover:shadow-sm">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-[#3933EB] font-bold">
-                  <BookOpen className="w-5 h-5 shrink-0" />
-                  <span className="leading-tight">Documentation Overview</span>
-                </div>
-                <p className="text-xs text-[#6B7280] font-medium leading-relaxed">
-                  Step-by-step instructions for forms, templates, and more.
-                </p>
-              </div>
+            <div className="bg-[#F0EFFC] border border-[#C5C5F9] rounded-xl p-4 transition-all hover:bg-[#E2E0F9] hover:shadow-sm flex flex-col items-center text-center gap-2">
+              <BookOpen className="w-8 h-8 text-[#3933EB] shrink-0 mb-1" />
+              <span className="text-[#3933EB] font-bold leading-tight text-sm">Documentation Overview</span>
+              <p className="text-xs text-[#6B7280] font-medium leading-relaxed">
+                Step-by-step instructions for forms, templates, and more.
+              </p>
             </div>
           </a>
         )}
