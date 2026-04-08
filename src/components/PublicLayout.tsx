@@ -1,11 +1,11 @@
 import { Outlet } from "react-router-dom";
-import PublicNavbar from "@/components/PublicNavbar";
+import PublicNavbar from "./PublicNavbar";
 
 const PublicLayout = () => {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-[#F7F8FC] flex flex-col">
       <PublicNavbar />
-      <main className="flex-1">
+      <main className="flex-1 w-full">
         <Outlet />
       </main>
     </div>
