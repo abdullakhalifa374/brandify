@@ -1,4 +1,4 @@
-import { Home, LayoutGrid, User, MessageSquare, FolderOpen, LogOut, BookOpen, Gift } from "lucide-react";
+import { Home, LayoutGrid, User, MessageSquare, FolderOpen, LogOut, BookOpen, Gift, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
@@ -24,7 +24,7 @@ const navItems = [
 ];
 
 const AppSidebar = () => {
-  const { state } = useSidebar();
+  const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const { client, logout } = useAuth();
@@ -36,13 +36,19 @@ const AppSidebar = () => {
   return (
     <Sidebar collapsible="icon">
       <SidebarContent className="flex flex-col h-full">
-        <div className="p-4 h-14 flex items-center">
-          {!collapsed && (
-            <span className="text-xl font-bold text-foreground tracking-tight">Brandify</span>
-          )}
+        
+        {/* NEW: Minimize Sidebar Toggle Button */}
+        <div className="h-14 flex items-center px-4">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={toggleSidebar} 
+            className="text-muted-foreground hover:text-foreground"
+          >
+            {collapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+          </Button>
         </div>
 
-        {/* MAIN APPLICATION LINKS */}
         <SidebarGroup>
           <div className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             {!collapsed && "Application"}
@@ -77,8 +83,8 @@ const AppSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* DESIGN UPDATE: Floating Centered Documentation Box */}
-        <div className="flex-1 flex flex-col justify-center p-4">
+        {/* NEW: Documentation Box Moved Up Underneath Menu */}
+        <div className="px-4 mt-6">
           {collapsed ? (
             <a href="https://www.brandify.zone/documentation" target="_blank" rel="noopener noreferrer" title="Documentation" className="flex items-center justify-center p-2 rounded-xl bg-[#F0EFFC] text-[#3933EB] hover:bg-[#E2E0F9] transition-colors mx-auto">
               <BookOpen className="w-5 h-5" />
@@ -97,7 +103,6 @@ const AppSidebar = () => {
         </div>
       </SidebarContent>
 
-      {/* DESIGN UPDATE: Added pb-6 to push Logout button up slightly from the bottom */}
       <SidebarFooter className="p-3 pb-6">
         <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground hover:text-foreground" onClick={logout}>
           <LogOut className="mr-2 h-4 w-4 shrink-0" />
