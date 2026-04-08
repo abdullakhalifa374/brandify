@@ -6,16 +6,21 @@ const PublicNavbar = () => {
   const { user } = useAuth();
   const location = useLocation();
 
-const navLinks = [
+  const navLinks = [
     { label: "Free Templates", path: "/free-templates" },
     { label: "Marketplace", path: "/marketplace" },
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-sm">
+    <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-sm w-full">
       <div className="container flex h-14 items-center justify-between">
-        <Link to="/" className="text-xl font-bold text-foreground tracking-tight">
-          Brandify
+        {/* NEW: Image Logo */}
+        <Link to="/" className="flex items-center">
+          <img 
+            src="https://cloud-1de12d.becdn.net/media/iW=238&iH=54&oX=0&oY=0&cW=238&cH=54/3f67b33762851b549b689cda2577b6ca/Brandify-Logo.png" 
+            alt="Brandify" 
+            className="h-8 object-contain"
+          />
         </Link>
         <nav className="flex items-center gap-1">
           {navLinks.map(link => (
