@@ -4,9 +4,9 @@ import { getMarketplaceData } from "@/lib/googleSheets";
 import TemplateCard from "@/components/TemplateCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, AlertCircle, ShoppingCart, Search, Folder, Maximize } from "lucide-react";
+import { Loader2, AlertCircle, ShoppingCart, Search, Folder, Maximize, ArrowDownUp, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; 
 
 interface MarketplaceImage {
@@ -26,6 +26,13 @@ interface MarketplaceTemplate {
   gallery: MarketplaceImage[];
   variation: boolean; 
   availableColors: string[]; 
+  // NEW COLUMNS
+  templateType: string;
+  noOfFiles: string;
+  logoColor: string;
+  channels: string;
+  filesType: string;
+  originalIndex: number;
 }
 
 const FORMS_SERVICES_BASE = "https://forms.brandify.zone/services/";
@@ -36,9 +43,11 @@ const Marketplace = () => {
   
   const [templates, setTemplates] = useState<MarketplaceTemplate[]>([]);
   
+  // FILTERS STATE
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [type, setType] = useState("all");
+  const [sortBy, setSortBy] = useState("newest"); // NEW SORT STATE
   
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -71,7 +80,7 @@ const Marketplace = () => {
 
         const colorHeaders = ['Red', 'Orange', 'Pink', 'Blue', 'Purple', 'Yellow', 'Green', 'Black', 'Gray', 'White'];
 
-        const formattedData: MarketplaceTemplate[] = libraryRows.slice(1).map((row: any[]) => {
+        const formattedData: MarketplaceTemplate[] = libraryRows.slice(1).map((row: any[], index: number) => {
           const tId = row[1] || "";
           const templateImages = parsedImages.filter((img: any) => img.template_id === tId);
 
@@ -97,7 +106,14 @@ const Marketplace = () => {
             price: parseFloat(row[7] || "0"),
             gallery: templateImages,
             variation: isVariation,
-            availableColors: colors
+            availableColors: colors,
+            // NEW COLUMNS MAPPED (Indices 19 to 23 are T to X)
+            templateType: row[19] || "-",
+            noOfFiles: row[20] || "-",
+            logoColor: row[21] || "-",
+            channels: row[22] || "-",
+            filesType: row[23] || "-",
+            originalIndex: index
           };
         });
 
@@ -127,6 +143,11 @@ const Marketplace = () => {
       const colorImages = selectedTemplate.gallery.filter(img => img.color.toLowerCase() === newColor.toLowerCase());
       setActiveImageUrl(colorImages.length > 0 ? colorImages[0].url : selectedTemplate.mainPreview);
     }
+  };
+
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    alert("Template ID Copied!");
   };
 
   const hasFreeClaims = client ? parseInt(client.freeTemplates.toString()) > parseInt(client.templatesUsed.toString()) : false;
@@ -171,12 +192,23 @@ const Marketplace = () => {
     return parts.join('-');
   }) || [];
 
-  const availableTemplates = templates.filter(f => {
+  // FILTERING LOGIC
+  let availableTemplates = templates.filter(f => {
     if (ownedBaseIds.includes(f.template_id)) return false; 
     if (searchQuery && !f.title.toLowerCase().includes(searchQuery.toLowerCase())) return false; 
     if (category !== "all" && f.category !== category) return false;
     if (type !== "all" && f.type !== type) return false;
     return true;
+  });
+
+  // SORTING LOGIC
+  availableTemplates.sort((a, b) => {
+    if (sortBy === "a-z") return a.title.localeCompare(b.title);
+    if (sortBy === "z-a") return b.title.localeCompare(a.title);
+    if (sortBy === "price-low") return a.price - b.price;
+    if (sortBy === "price-high") return b.price - a.price;
+    if (sortBy === "oldest") return a.originalIndex - b.originalIndex;
+    return b.originalIndex - a.originalIndex; // "newest" default
   });
 
   const myOwnedTemplates = templates.filter(f => ownedBaseIds.includes(f.template_id));
@@ -191,11 +223,10 @@ const Marketplace = () => {
         <p className="text-muted-foreground">Browse premium templates for your business</p>
       </div>
 
-      {/* FILTERS DESIGN: No background, Search left, Filters right */}
+      {/* FILTERS SECTION */}
       <div className="w-full">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
           
-          {/* Search (Left) */}
           <div className="relative w-full md:max-w-sm shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
             <Input 
@@ -206,9 +237,8 @@ const Marketplace = () => {
             />
           </div>
 
-          {/* Dropdown Filters (Right) */}
           <div className="flex flex-row items-center gap-3 overflow-x-auto w-full md:w-auto scrollbar-hide pb-2 md:pb-0">
-            {/* Category Filter */}
+            
             <div className="relative shrink-0">
               <Folder className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
               <select 
@@ -224,7 +254,6 @@ const Marketplace = () => {
               </div>
             </div>
 
-            {/* Type Filter */}
             <div className="relative shrink-0">
               <Maximize className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
               <select 
@@ -239,6 +268,27 @@ const Marketplace = () => {
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
               </div>
             </div>
+
+            {/* NEW SORT FILTER */}
+            <div className="relative shrink-0">
+              <ArrowDownUp className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A94A6]" />
+              <select 
+                value={sortBy} 
+                onChange={(e) => setSortBy(e.target.value)}
+                className="h-10 pl-9 pr-8 rounded-full border border-[#D8DEEF] bg-[#F1F2FA] text-[#000000] text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5C5F9] appearance-none outline-none cursor-pointer"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="a-z">Alphabetical (A-Z)</option>
+                <option value="z-a">Alphabetical (Z-A)</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8A94A6]">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -294,17 +344,50 @@ const Marketplace = () => {
         </div>
       )}
 
-      {/* PURCHASE MODAL */}
+      {/* PURCHASE MODAL / DETAILED VIEW */}
       <Dialog open={!!selectedTemplate} onOpenChange={(open) => !open && setSelectedTemplate(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           {selectedTemplate && (
             <div className="space-y-6">
               <DialogHeader>
-                <DialogTitle className="text-2xl">{selectedTemplate.title}</DialogTitle>
-                <DialogDescription className="text-base mt-2">{selectedTemplate.description || "No description provided."}</DialogDescription>
+                <DialogTitle className="text-2xl font-bold">{selectedTemplate.title}</DialogTitle>
               </DialogHeader>
-              
-              {/* MODAL IMAGE DESIGN UPDATE TO MATCH CARDS */}
+
+              {/* NEW: 3x2 Grid View */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm bg-[#F1F2FA] p-4 rounded-lg border border-[#D8DEEF]">
+                <div className="space-y-3">
+                  <p><span className="font-bold text-foreground">Category:</span> <span className="text-muted-foreground">{selectedTemplate.category}</span></p>
+                  <p><span className="font-bold text-foreground">Logo Color:</span> <span className="text-muted-foreground">{selectedTemplate.logoColor}</span></p>
+                  <p><span className="font-bold text-foreground">Channels:</span> <span className="text-muted-foreground">{selectedTemplate.channels}</span></p>
+                </div>
+                <div className="space-y-3">
+                  <p><span className="font-bold text-foreground">Template Type:</span> <span className="text-muted-foreground">{selectedTemplate.templateType}</span></p>
+                  <p><span className="font-bold text-foreground">No. of Files:</span> <span className="text-muted-foreground">{selectedTemplate.noOfFiles}</span></p>
+                  <p><span className="font-bold text-foreground">Files Type:</span> <span className="text-muted-foreground">{selectedTemplate.filesType}</span></p>
+                </div>
+              </div>
+
+              {/* NEW: Description */}
+              <div className="text-base text-muted-foreground leading-relaxed">
+                {selectedTemplate.description || "No description provided for this template."}
+              </div>
+
+              {/* NEW: Copyable ID Box */}
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-foreground">ID:</span>
+                <div className="flex items-center bg-[#F7F8FC] border border-[#D8DEEF] rounded-md px-3 py-1.5 gap-2 w-fit">
+                  <span className="text-sm font-mono text-muted-foreground">#{selectedTemplate.template_id}</span>
+                  <button 
+                    onClick={() => handleCopyId(selectedTemplate.template_id)}
+                    className="text-muted-foreground hover:text-[#3933EB] transition-colors ml-2"
+                    title="Copy ID"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Image Display */}
               <div className="rounded-lg overflow-hidden border border-border bg-card aspect-video relative flex items-center justify-center p-[5px]">
                 <div className="h-full w-full bg-[#F7F8FC] p-[10px] flex items-center justify-center rounded-md overflow-hidden">
                   <img 
@@ -315,6 +398,7 @@ const Marketplace = () => {
                 </div>
               </div>
 
+              {/* Image Gallery */}
               {visibleThumbnails.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {visibleThumbnails.map((img, idx) => (
@@ -331,6 +415,7 @@ const Marketplace = () => {
                 </div>
               )}
 
+              {/* Color Variation Selector */}
               {selectedTemplate.variation && selectedTemplate.availableColors.length > 1 && (
                 <div className="flex items-center gap-3 bg-muted/30 p-4 rounded-md border border-border">
                   <span className="text-sm font-medium text-foreground">Select Color Variation:</span>
@@ -347,6 +432,7 @@ const Marketplace = () => {
                 </div>
               )}
 
+              {/* Purchase Footer */}
               <div className="flex items-center justify-between pt-4 border-t border-border">
                 <div>
                   <p className="text-sm text-muted-foreground">Price</p>
