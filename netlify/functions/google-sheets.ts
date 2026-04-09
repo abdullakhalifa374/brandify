@@ -308,15 +308,16 @@ export const handler = async (event: any) => {
       return { statusCode: 200, headers, body: JSON.stringify({ data: response.data.values || [] }) };
     }
 
-    // --- MARKETPLACE FETCH ---
+// --- MARKETPLACE FETCH ---
     if (action === 'getMarketplaceData') {
       const [libraryRes, imagesRes] = await Promise.all([
-        sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Library'!A:T" }),
+        // CHANGE A:T to A:X HERE:
+        sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Library'!A:X" }),
         sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.marketplace, range: "'Images'!A:D" })
       ]);
       return { statusCode: 200, headers, body: JSON.stringify({ data: { library: libraryRes.data.values || [], images: imagesRes.data.values || [] } }) };
     }
-
+    
     // --- UPDATE PROFILE ---
     if (action === 'updateProfile' && mobile && data) {
       const detailsRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEETS.main, range: "'Clients Details'!A:A" });
